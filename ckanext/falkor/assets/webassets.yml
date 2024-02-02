@@ -1,0 +1,14 @@
+# falkor-js:
+#   filter: rjsmin
+#   output: ckanext-falkor/%(version)s-falkor.js
+#   contents:
+#     - js/falkor.js
+#   extra:
+#     preload:
+#       - base/main
+
+# falkor-css:
+#   filter: cssrewrite
+#   output: ckanext-falkor/%(version)s-falkor.css
+#   contents:
+#     - css/falkor.css

@@ -1,0 +1,5 @@
+include README.rst
+include LICENSE
+include requirements.txt
+recursive-include ckanext/falkor *.html *.json *.js *.less *.css *.mo *.yml
+recursive-include ckanext/falkor/migration *.ini *.py *.mako
