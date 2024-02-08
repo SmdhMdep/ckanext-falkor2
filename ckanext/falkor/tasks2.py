@@ -32,20 +32,27 @@ baseHeaders = {
 # Send a post request to falkor
 def falkorPost(url, payload, headers):
     response = requests.post(url, headers = headers,json = payload,timeout=120)
-    log.debug(response)
+    log.debug(response.json())
     return response
 
 # Send a post request to falkor
 def falkorPut(url, payload, headers):
     response = requests.put(url, headers = headers,json = payload,timeout=120)
+    log.debug(response.json())
     return response
 
 # Send a get request to falkor
 def falkorGet(url, headers):
     response = requests.get(url, headers = headers,timeout=120)
+    log.debug(response.json())
     return response
 
-def documentCreation(resource):
+def falkorDelete(url, headers):
+    response = requests.delete(url, headers, timeout=120)
+    log.debug(response.json())
+    return response
+
+def documentCreate(resource):
     # Format data for falkor
     url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/" + resource['package_id'] + "/create"
     payload = {
@@ -53,6 +60,7 @@ def documentCreation(resource):
             'data': json.dumps(resource) 
             }
 
+    log.debug(f'Creating document with id {str(resource["id"])}')
     #run async request
     jobs.enqueue(
         falkorPost,
@@ -68,7 +76,7 @@ def documentUpdate(resource):
     payload = {
             'data': resource
             }
-
+    log.debug(f'Updating document with id {str(resource["id"])}')
     #run async request
     jobs.enqueue(
         falkorPut,
@@ -87,10 +95,18 @@ def documentRead(context, resource):
        [url, baseHeaders]
     )
 
-def datasetCreation(resource):
+def documentDelete(resource):
+    url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/"+ resource['package_id'] + "/" + resource['id']
+    #run async request
+    log.debug(f'Deleting document with id {str(resource["id"])}')
+    jobs.enqueue(
+        falkorDelete,
+        [url, baseHeaders]
+    )
+
+def datasetCreate(resource):
     # Format data for falkor
     url = ADMIN_BASE_URL + str(TENANT_ID) +"/dataset"
-    log.debug(f'DATASET {resource["id"]}')
     payload = {
         'datasetId': str(resource['id']),
         "encryptionType": "none",
@@ -102,6 +118,7 @@ def datasetCreation(resource):
     }
 
     #run async request
+    log.debug(f'Create dataset with id {str(resource["id"])}')
     jobs.enqueue(
         falkorPost,
         [url, payload, baseHeaders]

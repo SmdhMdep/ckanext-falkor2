@@ -59,39 +59,22 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 #to make this into a webhook.
                 return
 
-            #resource/document create
             elif operation == DomainObjectOperation.new:
                 topic = 'resource/create'
                 resource = table_dictize(entity, context)
-
-                tasks2.documentCreation(resource) 
+                tasks2.documentCreate(resource) 
 
             #resource/document update
             if operation == DomainObjectOperation.changed:
                 topic = 'resource/update'
-
                 resource = table_dictize(entity, context)
-
-                #tasks.notify_hooks_resource_update(resource, webhook)
-
-                #jobs.enqueue(
-                #    tasks.notify_hooks_resource_update,
-                #    [resource, webhook, website]
-                #)
+                tasks2.documentUpdate(resource)
             
             #resource/document delete
             elif operation == DomainObjectOperation.deleted:
                 topic = 'resource/delete'
-
                 resource = table_dictize(entity, context)
-
-                #tasks.notify_hooks_resource_delete(resource, webhook, website)
-
-                #jobs.enqueue(
-                #    tasks.notify_hooks_resource_update,
-                #    [resource, webhook, website]
-                #)
-                
+                tasks2.documentDelete(resource) 
             else:
                 return
 
@@ -100,9 +83,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
             if operation == DomainObjectOperation.new:
                 topic = 'dataset/create'
                 resource = table_dictize(entity, context)
-                log.debug("IS THIS BEING CALLED ------------------------------------------------ Dataset", resource)
-                    
-                tasks2.datasetCreation(resource) 
+                tasks2.datasetCreate(resource) 
 
             #Dataset update
             #Most likely not required as falkor doesnt allow updating datasets
