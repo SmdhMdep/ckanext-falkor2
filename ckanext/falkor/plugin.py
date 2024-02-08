@@ -100,18 +100,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 return
 
         if isinstance(entity, model.Package):
-
             #Dataset create
             if operation == DomainObjectOperation.new:
                 topic = 'dataset/create'
                 resource = table_dictize(entity, context)
-
-                #tasks.notify_hooks_dataset_create(resource)
+                log.debug("IS THIS BEING CALLED ------------------------------------------------ Dataset", resource)
                     
-                #jobs.enqueue(
-                #    tasks.notify_hooks_dataset_create,
-                #    [resource, webhook, website]
-                #)
+                tasks2.datasetCreation(resource) 
 
             #Dataset update
             #Most likely not required as falkor doesnt allow updating datasets

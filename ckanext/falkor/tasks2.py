@@ -17,37 +17,37 @@ log = logging.getLogger(__name__)
 
 # Constants
 
-TenantID = 3
-
-Bearer = "~~~~~~~~~~~~~~~~~~~~~~~~~~" 
-
-baseurl = "https://test.falkor.byzgen.com/api/core/v0/"
+TENANT_ID = 2001 
+BEARER = '' 
+CORE_BASE_URL = "http://192.168.66.1:8080/api/core/v0/"
+ADMIN_BASE_URL = "http://192.168.66.1:8585/api/admin/v0/"
 
 # Base header constant
 baseHeaders = {
             'Content-Type': 'application/json',
             "accept": "application/json",
-            "Authorization": "Bearer " + Bearer
+            "Authorization": "Bearer " + BEARER 
         }
 
 # Send a post request to falkor
 def falkorPost(url, payload, headers):
-    response = requests.post(url, headers = headers,json = payload,timeout=2)
+    response = requests.post(url, headers = headers,json = payload,timeout=120)
+    log.debug(response)
     return response
 
 # Send a post request to falkor
 def falkorPut(url, payload, headers):
-    response = requests.put(url, headers = headers,json = payload,timeout=2)
+    response = requests.put(url, headers = headers,json = payload,timeout=120)
     return response
 
 # Send a get request to falkor
 def falkorGet(url, headers):
-    response = requests.get(url, headers = headers,timeout=2)
+    response = requests.get(url, headers = headers,timeout=120)
     return response
 
 def documentCreation(resource):
     # Format data for falkor
-    url = baseurl + TenantID +"/dataset/" + resource['package_id'] + "/create"
+    url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/" + resource['package_id'] + "/create"
     payload = {
             'documentId': resource['id'],
             'data': "name = " + resource['name']
@@ -64,7 +64,7 @@ def documentCreation(resource):
 #   JSON document updates
 def documentUpdate(resource):
     # Format data for falkor
-    url = baseurl + str(TenantID) +"/dataset/"+ resource['package_id'] + "/" + resource['id'] +"/body"
+    url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/"+ resource['package_id'] + "/" + resource['id'] +"/body"
     payload = {
             'data': "name = " + resource['name']
             }
@@ -76,21 +76,21 @@ def documentUpdate(resource):
     )
 
 def documentRead(context, resource):
-
-    if context["user_obj"] == None:
-        url = baseurl + str(TenantID) + resource['package_id'] + "/" + resource['id'] + "/body?userId=" + "guest"
+    if "user_obj" not in context:
+        url = CORE_BASE_URL + str(TENANT_ID) + resource['package_id'] + "/" + resource['id'] + "/body?userId=" + "guest"
     else:
-        url = baseurl + str(TenantID) + resource['package_id'] + "/" + resource['id'] + "/body?userId=" + context["user_obj"].id
-
+        url = CORE_BASE_URL + str(TENANT_ID) + resource['package_id'] + "/" + resource['id'] + "/body?userId=" + context["user_obj"].id
+    log.debug(url)
     #run async request
-    #jobs.enqueue(
-    #    falkorGett,
-    #    [url, baseHeaders]
-    #)
+    jobs.enqueue(
+       falkor_get,
+       [url, baseHeaders]
+    )
 
 def datasetCreation(resource):
     # Format data for falkor
-    url = baseurl + TenantID +"/dataset"
+    url = ADMIN_BASE_URL + str(TENANT_ID) +"/dataset"
+    log.debug(f'DATASET {resource["id"]}')
     payload = {
         'datasetId': str(resource['id']),
         "encryptionType": "none",
