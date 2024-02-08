@@ -50,7 +50,7 @@ def documentCreation(resource):
     url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/" + resource['package_id'] + "/create"
     payload = {
             'documentId': resource['id'],
-            'data': "name = " + resource['name']
+            'data': json.dumps(resource) 
             }
 
     #run async request
@@ -66,7 +66,7 @@ def documentUpdate(resource):
     # Format data for falkor
     url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/"+ resource['package_id'] + "/" + resource['id'] +"/body"
     payload = {
-            'data': "name = " + resource['name']
+            'data': resource
             }
 
     #run async request

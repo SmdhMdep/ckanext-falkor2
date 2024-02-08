@@ -63,12 +63,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
             elif operation == DomainObjectOperation.new:
                 topic = 'resource/create'
                 resource = table_dictize(entity, context)
-                #tasks.notify_hooks_resource_create_cheaty(resource, website)
 
-                #jobs.enqueue(
-                #    tasks.notify_hooks_resource_create_cheaty,
-                #    [resource, webhook, website]
-                #)
+                tasks2.documentCreation(resource) 
 
             #resource/document update
             if operation == DomainObjectOperation.changed:
