@@ -85,13 +85,13 @@ def documentUpdate(resource):
 
 def documentRead(context, resource):
     if "user_obj" not in context:
-        url = CORE_BASE_URL + str(TENANT_ID) + resource['package_id'] + "/" + resource['id'] + "/body?userId=" + "guest"
+        url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/"+ resource['package_id'] + "/" + resource['id'] + "/body?userId=" + "guest"
     else:
-        url = CORE_BASE_URL + str(TENANT_ID) + resource['package_id'] + "/" + resource['id'] + "/body?userId=" + context["user_obj"].id
+        url = CORE_BASE_URL + str(TENANT_ID) +"/dataset/"+ resource['package_id'] + "/" + resource['id'] + "/body?userId=" + context["user_obj"].id
     log.debug(url)
     #run async request
     jobs.enqueue(
-       falkor_get,
+       falkorGet,
        [url, baseHeaders]
     )
 

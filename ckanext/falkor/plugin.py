@@ -36,11 +36,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
             context = {
                 'model': model,
                 'session': model.Session,
-                'user': tk.c.user,
-                'user_obj': tk.c.userobj
+                'user': toolkit.g.user,
+                'user_obj': toolkit.g.userobj
             }
             tasks2.documentRead(context,resource_dict)
-        except:
+        except(e):
             a = 1
 
         
