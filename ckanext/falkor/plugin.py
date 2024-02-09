@@ -23,77 +23,56 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     # IConfigurer
     def update_config(self, config_):
-        toolkit.add_template_directory(config_, 'templates')
-        toolkit.add_public_directory(config_, 'public')
-        toolkit.add_resource('fanstatic',
-            'falkor')
+        toolkit.add_template_directory(config_, "templates")
+        toolkit.add_public_directory(config_, "public")
+        toolkit.add_resource("fanstatic", "falkor")
 
-
-    #IResourceController
+    # IResourceController
     def before_show(self, resource_dict):
+        context = {
+            "model": model,
+            "session": model.Session,
+            "user": toolkit.g.user,
+            "user_obj": toolkit.g.userobj,
+        }
+        tasks2.documentRead(context, resource_dict)
 
-        try:
-            context = {
-                'model': model,
-                'session': model.Session,
-                'user': toolkit.g.user,
-                'user_obj': toolkit.g.userobj
-            }
-            tasks2.documentRead(context,resource_dict)
-        except(e):
-            a = 1
-
-        
-
-
-
-    #IDomainObjectNotification & #IResourceURLChange
+    # IDomainObjectNotification & #IResourceURLChange
     def notify(self, entity, operation=None):
-        context = {'model': model, 'ignore_auth': True, 'defer_commit': True}
-
-        website = "http://ec2-18-134-94-243.eu-west-2.compute.amazonaws.com:5000/"
+        context = {"model": model, "ignore_auth": True, "defer_commit": True}
 
         if isinstance(entity, model.Resource):
             if not operation:
-                #This happens on IResourceURLChange, but I'm not sure whether
-                #to make this into a webhook.
+                # This happens on IResourceURLChange, but I'm not sure whether
+                # to make this into a webhook.
                 return
 
             elif operation == DomainObjectOperation.new:
-                topic = 'resource/create'
+                topic = "resource/create"
                 resource = table_dictize(entity, context)
-                tasks2.documentCreate(resource) 
+                tasks2.documentCreate(resource)
 
-            #resource/document update
+            # resource/document update
             if operation == DomainObjectOperation.changed:
-                topic = 'resource/update'
+                topic = "resource/update"
                 resource = table_dictize(entity, context)
                 tasks2.documentUpdate(resource)
-            
-            #resource/document delete
+
+            # resource/document delete
             elif operation == DomainObjectOperation.deleted:
-                topic = 'resource/delete'
+                topic = "resource/delete"
                 resource = table_dictize(entity, context)
-                tasks2.documentDelete(resource) 
+                tasks2.documentDelete(resource)
+
             else:
                 return
 
         if isinstance(entity, model.Package):
-            #Dataset create
+            # Dataset create
             if operation == DomainObjectOperation.new:
-                topic = 'dataset/create'
+                topic = "dataset/create"
                 resource = table_dictize(entity, context)
-                tasks2.datasetCreate(resource) 
-
-            #Dataset update
-            #Most likely not required as falkor doesnt allow updating datasets
-            elif operation == DomainObjectOperation.changed:
-                topic = 'dataset/update'
-
-            #Dataset delete
-            #Most likely not required as falkor doesnt allow deleting datasets
-            elif operation == DomainObjectOperation.deleted:
-                topic = 'dataset/delete'
+                tasks2.datasetCreate(resource)
 
             else:
                 return
