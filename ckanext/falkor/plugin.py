@@ -16,7 +16,18 @@ from ckanext.falkor import tasks2
 log = logging.getLogger(__name__)
 
 
+def get_config_value(config, key: str) -> str:
+    value = config.get(key)
+    if not value:
+        raise Exception(f"{key} not present in configration")
+    return value
+
+
 class FalkorPlugin(plugins.SingletonPlugin):
+    tenant_id: str
+    core_api_url: str
+    admin_api_url: str
+
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
@@ -30,20 +41,16 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def configure(self, config):
         self.config = config
-        config_keys = [
-            "falkor.tenant_id",
-            "falkor.core_api_url",
-            "falkor.admin_api_url",
-            "falkor.auth.endpoint",
-            "falkor.auth.client_id",
-            "falkor.auth.client_secret",
-            "falkor.auth.username",
-            "falkor.auth.password",
-        ]
-
-        for key in config_keys:
-            if not config.get(key):
-                raise Exception(f"{key} not present in configration")
+        # config_keys = [
+        # "ckanext.falkor.auth.endpoint",
+        # "ckanext.falkor.auth.client_id",
+        # "ckanext.falkor.auth.client_secret",
+        # "ckanext.falkor.auth.username",
+        # "ckanext.falkor.auth.password",
+        # ]
+        self.tenant_id = get_config_value(config, "ckanext.falkor.tenant_id")
+        self.core_api_url = get_config_value(config, "ckanext.falkor.tenant_id")
+        self.admin_api_url = get_config_value(config, "ckanext.falkor.admin_api_url")
 
     # IResourceController
     def before_show(self, resource_dict):
