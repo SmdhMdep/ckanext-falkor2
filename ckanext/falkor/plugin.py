@@ -75,31 +75,24 @@ class FalkorPlugin(plugins.SingletonPlugin):
         context = {"model": model, "ignore_auth": True, "defer_commit": True}
 
         if isinstance(entity, model.Resource):
-            if not operation:
-                return
-
-            elif operation == DomainObjectOperation.new:
+            if operation == DomainObjectOperation.new:
                 topic = "resource/create"
                 resource = table_dictize(entity, context)
-                log.debug("CREATE EVENT")
                 self.falkor.document_create(resource)
 
-            # resource/document update
             elif operation == DomainObjectOperation.changed:
                 topic = "resource/update"
                 resource = table_dictize(entity, context)
-                tasks2.documentUpdate(resource)
+                self.falkor.document_update(resource)
 
-            # resource/document delete
             elif operation == DomainObjectOperation.deleted:
                 topic = "resource/delete"
                 resource = table_dictize(entity, context)
-                tasks2.documentDelete(resource)
+                self.falkor.document_delete(resource)
             else:
                 return
 
-        if isinstance(entity, model.Package):
-            # Dataset create
+        elif isinstance(entity, model.Package):
             if operation == DomainObjectOperation.new:
                 topic = "dataset/create"
                 resource = table_dictize(entity, context)

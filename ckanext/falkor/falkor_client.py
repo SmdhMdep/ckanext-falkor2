@@ -59,24 +59,28 @@ class Falkor:
         self.__admin_base_url = admin_base_url
 
     def document_read(self, context, resource):
+        resource_id = str(resource["id"])
+        package_id = str(resource["package_id"])
+
+        user_id = "guest" if "user_obj" not in context else context["user_obj"].id
+
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + resource["package_id"]
+            + package_id
             + "/"
-            + resource["id"]
-            + "/body?userId="
+            + resource_id
+            + f"/body?userId={user_id}"
         )
 
-        if "user_obj" not in context:
-            url = url + "guest"
-        else:
-            url = url + context["user_obj"].id
-
+        log.debug(f"Read by {user_id} for document with id {resource_id}")
         jobs.enqueue(falkor_get, [url, base_headers(self.__auth.access_token)])
 
     def document_create(self, resource: dict):
+        resource_id = str(resource["id"])
+        package_id = str(resource["package_id"])
+
         url = (
             self.__core_base_url
             + self.__tenant_id
@@ -84,10 +88,44 @@ class Falkor:
             + resource["package_id"]
             + "/create"
         )
-        resource_id = str(resource["id"])
         payload = {"documentId": resource_id, "data": json.dumps(resource)}
 
         log.debug(f"Creating document with id {resource_id}")
         jobs.enqueue(
             falkor_post, [url, payload, base_headers(self.__auth.access_token)]
         )
+
+    def document_update(self, resource):
+        resource_id = str(resource["id"])
+        package_id = str(resource["package_id"])
+
+        url = (
+            self.__core_base_url
+            + self.__tenant_id
+            + "/dataset/"
+            + package_id
+            + "/"
+            + resource_id
+            + "/body"
+        )
+
+        log.debug(f"Updating document with id {resource_id}")
+        jobs.enqueue(
+            falkor_put, [url, resource, base_headers(self.__auth.access_token)]
+        )
+
+    def document_delete(self, resource):
+        resource_id = str(resource["id"])
+        package_id = str(resource["package_id"])
+
+        url = (
+            self.__core_base_url
+            + self.__tenant_id
+            + "/dataset/"
+            + package_id
+            + "/"
+            + resource_id
+        )
+
+        log.debug(f'Deleting document with id {str(resource["id"])}')
+        jobs.enqueue(falkorDelete, [url, base_headers(self.__auth.access_token)])
