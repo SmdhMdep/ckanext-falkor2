@@ -58,6 +58,23 @@ class Falkor:
         self.__core_base_url = core_base_url
         self.__admin_base_url = admin_base_url
 
+    def dataset_create(self, resource):
+        resource_id = str(resource["id"])
+        url = self.__admin_base_url + self.__tenant_id + "/dataset"
+        payload = {
+            "datasetId": resource_id,
+            "encryptionType": "none",
+            "externalStorage": "false",
+            "permissionEnabled": "false",
+            "taggingEnabled": "false",
+            "iotaEnabled": "false",
+            "tokensEnabled": "false",
+        }
+
+        # run async request
+        log.debug(f"Create dataset with id {resource_id}")
+        jobs.enqueue(falkorPost, [url, payload, base_headers()])
+
     def document_read(self, context, resource):
         resource_id = str(resource["id"])
         package_id = str(resource["package_id"])
@@ -85,7 +102,7 @@ class Falkor:
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + resource["package_id"]
+            + package_id
             + "/create"
         )
         payload = {"documentId": resource_id, "data": json.dumps(resource)}
@@ -127,5 +144,5 @@ class Falkor:
             + resource_id
         )
 
-        log.debug(f'Deleting document with id {str(resource["id"])}')
+        log.debug(f"Deleting document with id {resource_id}")
         jobs.enqueue(falkorDelete, [url, base_headers(self.__auth.access_token)])
