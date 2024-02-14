@@ -12,6 +12,7 @@ from ckan.lib.dictization import table_dictize
 from ckan.model.domain_object import DomainObjectOperation
 
 from ckanext.falkor import tasks2
+from ckanext.falkor import falkor_client, auth
 
 log = logging.getLogger(__name__)
 
@@ -24,9 +25,7 @@ def get_config_value(config, key: str) -> str:
 
 
 class FalkorPlugin(plugins.SingletonPlugin):
-    tenant_id: str
-    core_api_url: str
-    admin_api_url: str
+    falkor: falkor_client.Falkor
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
@@ -48,9 +47,17 @@ class FalkorPlugin(plugins.SingletonPlugin):
         # "ckanext.falkor.auth.username",
         # "ckanext.falkor.auth.password",
         # ]
-        self.tenant_id = get_config_value(config, "ckanext.falkor.tenant_id")
-        self.core_api_url = get_config_value(config, "ckanext.falkor.tenant_id")
-        self.admin_api_url = get_config_value(config, "ckanext.falkor.admin_api_url")
+        tenant_id = get_config_value(config, "ckanext.falkor.tenant_id")
+        core_api_url = get_config_value(config, "ckanext.falkor.core_api_url")
+        admin_api_url = get_config_value(config, "ckanext.falkor.admin_api_url")
+
+        credentials = auth.Credentials("falkor", "secret", "testuser", "password")
+        endpoint = "http://192.168.66.1:38080/realms/byzgen-falkor/protocol/openid-connect/token"
+        auth_client = auth.Auth(credentials, endpoint)
+
+        self.falkor = falkor_client.Falkor(
+            auth_client, tenant_id, core_api_url, admin_api_url
+        )
 
     # IResourceController
     def before_show(self, resource_dict):
@@ -60,7 +67,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
             "user": toolkit.g.user,
             "user_obj": toolkit.g.userobj,
         }
-        tasks2.documentRead(context, resource_dict)
+
+        # self.falkor.document_read(context, resource_dict)
 
     # IDomainObjectNotification & #IResourceURLChange
     def notify(self, entity, operation=None):
@@ -68,17 +76,16 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         if isinstance(entity, model.Resource):
             if not operation:
-                # This happens on IResourceURLChange, but I'm not sure whether
-                # to make this into a webhook.
                 return
 
             elif operation == DomainObjectOperation.new:
                 topic = "resource/create"
                 resource = table_dictize(entity, context)
-                tasks2.documentCreate(resource)
+                log.debug("CREATE EVENT")
+                self.falkor.document_create(resource)
 
             # resource/document update
-            if operation == DomainObjectOperation.changed:
+            elif operation == DomainObjectOperation.changed:
                 topic = "resource/update"
                 resource = table_dictize(entity, context)
                 tasks2.documentUpdate(resource)
@@ -88,7 +95,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 topic = "resource/delete"
                 resource = table_dictize(entity, context)
                 tasks2.documentDelete(resource)
-
             else:
                 return
 
@@ -98,6 +104,5 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 topic = "dataset/create"
                 resource = table_dictize(entity, context)
                 tasks2.datasetCreate(resource)
-
             else:
                 return

@@ -23,7 +23,7 @@ TENANT_ID = 2001
 CORE_BASE_URL = "http://192.168.66.1:8080/api/core/v0/"
 ADMIN_BASE_URL = "http://192.168.66.1:8585/api/admin/v0/"
 
-credentials = auth.Credentials("falkor", "", "testuser", "")
+credentials = auth.Credentials("falkor", "secret", "testuser", "password")
 endpoint = (
     "http://192.168.66.1:38080/realms/byzgen-falkor/protocol/openid-connect/token"
 )

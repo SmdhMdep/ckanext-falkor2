@@ -52,7 +52,7 @@ class Auth:
         if self.__access_token is None or self.__refresh_token is None:
             log.debug("No tokens, logging in...")
             self.__login()
-        if self.__is_token_expired(self.__refresh_token):
+        elif self.__is_token_expired(self.__refresh_token):
             log.debug("Refresh token expired, reauthenticating...")
             self.__login()
         elif self.__is_token_expired(self.__access_token):
@@ -63,6 +63,12 @@ class Auth:
     def __is_token_expired(self, token: Token) -> bool:
         expires_at = self.__timestamp + token.expires_in
         current_time = time.time()
+        log.debug(
+            "TOKEN EXPIRE INFO: Expires at: "
+            + str(expires_at)
+            + " - Current Time: "
+            + str(current_time)
+        )
         return current_time >= expires_at
 
     def __login(self) -> None:
