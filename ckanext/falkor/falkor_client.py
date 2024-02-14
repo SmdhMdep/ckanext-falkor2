@@ -73,7 +73,9 @@ class Falkor:
 
         # run async request
         log.debug(f"Create dataset with id {resource_id}")
-        jobs.enqueue(falkorPost, [url, payload, base_headers()])
+        jobs.enqueue(
+            falkor_post, [url, payload, base_headers(self.__auth.access_token)]
+        )
 
     def document_read(self, context, resource):
         resource_id = str(resource["id"])

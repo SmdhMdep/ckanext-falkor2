@@ -11,7 +11,6 @@ import ckan.lib.jobs as jobs
 from ckan.lib.dictization import table_dictize
 from ckan.model.domain_object import DomainObjectOperation
 
-from ckanext.falkor import tasks2
 from ckanext.falkor import falkor_client, auth
 
 log = logging.getLogger(__name__)
@@ -96,6 +95,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
             if operation == DomainObjectOperation.new:
                 topic = "dataset/create"
                 resource = table_dictize(entity, context)
-                tasks2.datasetCreate(resource)
+                self.falkor.dataset_create(resource)
             else:
                 return
