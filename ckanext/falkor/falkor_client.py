@@ -147,4 +147,4 @@ class Falkor:
         )
 
         log.debug(f"Deleting document with id {resource_id}")
-        jobs.enqueue(falkorDelete, [url, base_headers(self.__auth.access_token)])
+        jobs.enqueue(falkor_delete, [url, base_headers(self.__auth.access_token)])
