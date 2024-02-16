@@ -39,20 +39,22 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def configure(self, config):
         self.config = config
-        # config_keys = [
-        # "ckanext.falkor.auth.endpoint",
-        # "ckanext.falkor.auth.client_id",
-        # "ckanext.falkor.auth.client_secret",
-        # "ckanext.falkor.auth.username",
-        # "ckanext.falkor.auth.password",
-        # ]
+
+        endpoint = get_config_value(config, "ckanext.falkor.auth.endpoint")
+        client_id = get_config_value(config, "ckanext.falkor.auth.client_id")
+        client_secret = get_config_value(config, "ckanext.falkor.auth.client_secret")
+        username = get_config_value(config, "ckanext.falkor.auth.username")
+        password = get_config_value(config, "ckanext.falkor.auth.password")
+
+        credentials = auth.Credentials(client_id, client_secret, username, password)
+        auth_client = auth.Auth(
+            credentials,
+            endpoint,
+        )
+
         tenant_id = get_config_value(config, "ckanext.falkor.tenant_id")
         core_api_url = get_config_value(config, "ckanext.falkor.core_api_url")
         admin_api_url = get_config_value(config, "ckanext.falkor.admin_api_url")
-
-        credentials = auth.Credentials("falkor", "secret", "testuser", "password")
-        endpoint = "http://192.168.66.1:38080/realms/byzgen-falkor/protocol/openid-connect/token"
-        auth_client = auth.Auth(credentials, endpoint)
 
         self.falkor = falkor_client.Falkor(
             auth_client, tenant_id, core_api_url, admin_api_url
