@@ -62,14 +62,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     # IResourceController
     def before_show(self, resource_dict):
-        context = {
-            "model": model,
-            "session": model.Session,
-            "user": toolkit.g.user,
-            "user_obj": toolkit.g.userobj,
-        }
-
-        # self.falkor.document_read(context, resource_dict)
+        self.falkor.document_read(resource_dict)
 
     # IDomainObjectNotification & #IResourceURLChange
     def notify(self, entity, operation=None):

@@ -1,5 +1,6 @@
 from ckanext.falkor import auth
 import ckan.lib.jobs as jobs
+import ckan.plugins.toolkit as toolkit
 from typing import TypedDict
 import requests
 import logging
@@ -13,10 +14,13 @@ HttpHeaders = TypedDict(
 
 
 def base_headers(access_token: str) -> HttpHeaders:
+    user = toolkit.g.userobj
+    user_id = "guest" if not user else user.id
     return {
         "Content-Type": "application/json",
         "accept": "application/json",
         "Authorization": "Bearer " + access_token,
+        "x-user": user_id,
     }
 
 
@@ -77,12 +81,9 @@ class Falkor:
             falkor_post, [url, payload, base_headers(self.__auth.access_token)]
         )
 
-    def document_read(self, context, resource):
+    def document_read(self, resource):
         resource_id = str(resource["id"])
         package_id = str(resource["package_id"])
-
-        user_id = "guest" if "user_obj" not in context else context["user_obj"].id
-
         url = (
             self.__core_base_url
             + self.__tenant_id
@@ -90,10 +91,10 @@ class Falkor:
             + package_id
             + "/"
             + resource_id
-            + f"/body?userId={user_id}"
+            + f"/body"
         )
 
-        log.debug(f"Read by {user_id} for document with id {resource_id}")
+        log.debug(f"Read for document with id {resource_id}")
         jobs.enqueue(falkor_get, [url, base_headers(self.__auth.access_token)])
 
     def document_create(self, resource: dict):
