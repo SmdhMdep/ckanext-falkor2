@@ -4,11 +4,14 @@ import ckan.plugins.toolkit as toolkit
 import logging
 
 import ckan.model as model
+from ckan.common import config as ckanconfig
 
 from ckan.lib.dictization import table_dictize
 from ckan.model.domain_object import DomainObjectOperation
 
 from ckanext.falkor import falkor_client, auth
+
+# from flask import Blueprint, render_template
 
 log = logging.getLogger(__name__)
 
@@ -19,20 +22,25 @@ def get_config_value(config, key: str) -> str:
         raise Exception(f"{key} not present in configration")
     return value
 
+# def render_audit():
+#     u'''A simple view function'''
+#     return render_template(u"falkor-audit.html")
+
 
 class FalkorPlugin(plugins.SingletonPlugin):
-    falkor: falkor_client.Falkor
+    falkor: falkor_client.Falkor = None
 
     plugins.implements(plugins.IConfigurer)
+    plugins.implements(plugins.IConfigurable, inherit=True)
+    # plugins.implements(plugins.IBlueprint)
+    plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
-    plugins.implements(plugins.IConfigurable, inherit=True)
 
     # IConfigurer
-    def update_config(self, config_):
-        toolkit.add_template_directory(config_, "templates")
-        toolkit.add_public_directory(config_, "public")
-        toolkit.add_resource("fanstatic", "falkor")
+    def update_config(self, config):
+        toolkit.add_template_directory(config, "templates")
+        toolkit.add_public_directory(config, "public")
 
     def configure(self, config):
         self.config = config
@@ -59,6 +67,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
     # IResourceController
     def before_show(self, resource_dict):
         self.falkor.document_read(resource_dict)
+        self.get_helpers()
 
     # IDomainObjectNotification & #IResourceURLChange
     def notify(self, entity, operation=None):
@@ -85,3 +94,20 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 self.falkor.dataset_create(resource)
             else:
                 return
+
+    def get_helpers(self):
+        if self.falkor is None:
+            self.configure(ckanconfig)
+        return { 'get_audit_trail': self.falkor.document_audit_trail }
+
+    # def get_blueprint(self):
+    #     u'''Return a Flask Blueprint object to be registered by the app.'''
+    #
+    #     # Create Blueprint for plugin
+    #     blueprint = Blueprint("test", __name__)
+    #     blueprint.template_folder = u'templates'
+    #
+    #     # Add plugin url rules to Blueprint object
+    #     blueprint.add_url_rule(u'/hello_plugin', u'hello_plugin', render_audit)
+    #
+    #     return blueprint
