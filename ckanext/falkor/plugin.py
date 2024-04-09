@@ -5,9 +5,6 @@ import logging
 
 import ckan.model as model
 
-from ckan.plugins.toolkit import config
-
-import ckan.lib.jobs as jobs
 from ckan.lib.dictization import table_dictize
 from ckan.model.domain_object import DomainObjectOperation
 
@@ -39,7 +36,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def configure(self, config):
         self.config = config
-
         endpoint = get_config_value(config, "ckanext.falkor.auth.endpoint")
         client_id = get_config_value(config, "ckanext.falkor.auth.client_id")
         client_secret = get_config_value(config, "ckanext.falkor.auth.client_secret")
@@ -70,17 +66,14 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         if isinstance(entity, model.Resource):
             if operation == DomainObjectOperation.new:
-                topic = "resource/create"
                 resource = table_dictize(entity, context)
                 self.falkor.document_create(resource)
 
             elif operation == DomainObjectOperation.changed:
-                topic = "resource/update"
                 resource = table_dictize(entity, context)
                 self.falkor.document_update(resource)
 
             elif operation == DomainObjectOperation.deleted:
-                topic = "resource/delete"
                 resource = table_dictize(entity, context)
                 self.falkor.document_delete(resource)
             else:
@@ -88,7 +81,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         elif isinstance(entity, model.Package):
             if operation == DomainObjectOperation.new:
-                topic = "dataset/create"
                 resource = table_dictize(entity, context)
                 self.falkor.dataset_create(resource)
             else:
