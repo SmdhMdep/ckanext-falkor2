@@ -11,8 +11,6 @@ from ckan.model.domain_object import DomainObjectOperation
 
 from ckanext.falkor import falkor_client, auth
 
-# from flask import Blueprint, render_template
-
 log = logging.getLogger(__name__)
 
 
@@ -22,17 +20,12 @@ def get_config_value(config, key: str) -> str:
         raise Exception(f"{key} not present in configration")
     return value
 
-# def render_audit():
-#     u'''A simple view function'''
-#     return render_template(u"falkor-audit.html")
-
 
 class FalkorPlugin(plugins.SingletonPlugin):
-    falkor: falkor_client.Falkor = None
+    falkor: falkor_client.Falkor
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
-    # plugins.implements(plugins.IBlueprint)
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
@@ -95,19 +88,15 @@ class FalkorPlugin(plugins.SingletonPlugin):
             else:
                 return
 
-    def get_helpers(self):
-        if self.falkor is None:
-            self.configure(ckanconfig)
-        return { 'get_audit_trail': self.falkor.document_audit_trail }
+    def construct_falkor_url(self, resource):
+        log.info(resource)
+        resource_id = resource["id"]
+        package_id = resource["package_id"]
 
-    # def get_blueprint(self):
-    #     u'''Return a Flask Blueprint object to be registered by the app.'''
-    #
-    #     # Create Blueprint for plugin
-    #     blueprint = Blueprint("test", __name__)
-    #     blueprint.template_folder = u'templates'
-    #
-    #     # Add plugin url rules to Blueprint object
-    #     blueprint.add_url_rule(u'/hello_plugin', u'hello_plugin', render_audit)
-    #
-    #     return blueprint
+        package_info = toolkit.get_action("package_show")(data_dict={"id": package_id})
+        organisation_id = package_info["organization"]["id"]
+
+        return f"http://192.168.66.1:8686/{organisation_id}/{package_id}/{resource_id}"
+
+    def get_helpers(self):
+        return {"construct_falkor_url": self.construct_falkor_url}

@@ -5,6 +5,7 @@ from typing import TypedDict
 import requests
 import logging
 import json
+import datetime
 
 log = logging.getLogger(__name__)
 
@@ -149,21 +150,3 @@ class Falkor:
 
         log.debug(f"Deleting document with id {resource_id}")
         jobs.enqueue(falkor_delete, [url, base_headers(self.__auth.access_token)])
-
-    def document_audit_trail(self, resource):
-        resource_id = str(resource["id"])
-        package_id = str(resource["package_id"])
-
-        url = (
-            self.__core_base_url
-            + self.__tenant_id
-            + "/dataset/"
-            + package_id
-            + "/"
-            + resource_id
-            + "/body/audit"
-        )
-
-        return falkor_get(url, base_headers(self.__auth.access_token)).json()
-
-
