@@ -89,14 +89,26 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 return
 
     def construct_falkor_url(self, resource):
-        log.info(resource)
         resource_id = resource["id"]
+        resource_name = resource["name"]
+
         package_id = resource["package_id"]
 
         package_info = toolkit.get_action("package_show")(data_dict={"id": package_id})
-        organisation_id = package_info["organization"]["id"]
+        package_name = resource["name"]
 
-        return f"http://192.168.66.1:8686/{organisation_id}/{package_id}/{resource_id}"
+        organisation_info = package_info["organization"]
+        organisation_id = organisation_info["id"]
+        organisation_name = organisation_info["title"]
+
+        log.debug(resource)
+        log.debug(package_info)
+
+        # TODO: Add base url of audit app to config
+        url = f"http://192.168.66.1:8686/{organisation_name}/{package_name}/{resource_name}"
+        query = f"?org_id={organisation_id}&dataset_id={package_id}&doc_id={resource_id}"
+
+        return url + query
 
     def get_helpers(self):
         return {"construct_falkor_url": self.construct_falkor_url}
