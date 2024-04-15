@@ -1,9 +1,9 @@
 {% ckan_extends %}
 
 {% block resource_actions_inner %}
-  {{ super() }}
     <li>
       {% set url = h.construct_falkor_url(res) %}
       <a class="btn btn-default" href="{{ url }}"><i class="fa fa-clipboard"></i> Audit</a>
     </li>
+  {{ super() }}
 {% endblock %}
