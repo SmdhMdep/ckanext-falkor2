@@ -70,7 +70,17 @@ class FalkorPlugin(plugins.SingletonPlugin):
         if isinstance(entity, model.Resource):
             if operation == DomainObjectOperation.new:
                 resource = table_dictize(entity, context)
-                self.falkor.document_create(resource)
+
+                package_id = resource["package_id"]
+
+                package_info = toolkit.get_action("package_show")(
+                    data_dict={"id": package_id}
+                )
+
+                organisation_info = package_info["organization"]
+                organisation_id = organisation_info["id"]
+
+                self.falkor.document_create(resource, organisation_id, package_id)
 
             elif operation == DomainObjectOperation.changed:
                 resource = table_dictize(entity, context)
@@ -96,20 +106,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
         package_id = resource["package_id"]
 
         package_info = toolkit.get_action("package_show")(data_dict={"id": package_id})
-        package_name = resource["name"]
+        package_name = package_info["name"]
 
         organisation_info = package_info["organization"]
-        organisation_id = organisation_info["id"]
         organisation_name = organisation_info["title"]
 
-        log.debug(resource)
-        log.debug(package_info)
-
-        url = f"{self.audit_base_url}{organisation_name}/{package_name}/{resource_name}"
-        query = (
-            f"?org_id={organisation_id}&dataset_id={package_id}&doc_id={resource_id}"
-        )
-
+        url = f"{self.audit_base_url}{package_id}/{resource_id}"
+        query = f"?dataset_name={package_name}&org_name={organisation_name}&doc_name={resource_name}"
         return url + query
 
     def get_helpers(self):

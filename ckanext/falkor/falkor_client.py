@@ -71,7 +71,8 @@ class Falkor:
             "encryptionType": "none",
             "externalStorage": "false",
             "permissionEnabled": "false",
-            "taggingEnabled": "false",
+            "taggingEnabled": "true",
+            "linkedContract": "none",
             "iotaEnabled": "false",
             "tokensEnabled": "false",
         }
@@ -98,7 +99,12 @@ class Falkor:
         log.debug(f"Read for document with id {resource_id}")
         jobs.enqueue(falkor_get, [url, base_headers(self.__auth.access_token)])
 
-    def document_create(self, resource: dict):
+    def document_create(
+        self,
+        resource: dict,
+        organisation_id: str,
+        package_id: str,
+    ):
         resource_id = str(resource["id"])
         package_id = str(resource["package_id"])
 
@@ -109,7 +115,15 @@ class Falkor:
             + package_id
             + "/create"
         )
-        payload = {"documentId": resource_id, "data": json.dumps(resource)}
+        payload = {
+            "documentId": resource_id,
+            "data": json.dumps(resource),
+            "tags": {
+                "organisation_id": organisation_id,
+                "package_id": package_id,
+                "resource_id": resource_id,
+            },
+        }
 
         log.debug(f"Creating document with id {resource_id}")
         jobs.enqueue(
