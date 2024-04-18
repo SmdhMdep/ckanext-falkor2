@@ -52,6 +52,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         tenant_id = get_config_value(config, "ckanext.falkor.tenant_id")
         core_api_url = get_config_value(config, "ckanext.falkor.core_api_url")
         admin_api_url = get_config_value(config, "ckanext.falkor.admin_api_url")
+        self.audit_base_url = get_config_value(config, "ckanext.falkor.audit_base_url")
 
         self.falkor = falkor_client.Falkor(
             auth_client, tenant_id, core_api_url, admin_api_url
@@ -104,9 +105,10 @@ class FalkorPlugin(plugins.SingletonPlugin):
         log.debug(resource)
         log.debug(package_info)
 
-        # TODO: Add base url of audit app to config
-        url = f"http://192.168.66.1:8686/{organisation_name}/{package_name}/{resource_name}"
-        query = f"?org_id={organisation_id}&dataset_id={package_id}&doc_id={resource_id}"
+        url = f"{self.audit_base_url}{organisation_name}/{package_name}/{resource_name}"
+        query = (
+            f"?org_id={organisation_id}&dataset_id={package_id}&doc_id={resource_id}"
+        )
 
         return url + query
 
