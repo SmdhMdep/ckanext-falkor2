@@ -1,10 +1,7 @@
 import logging
 import requests
 import time
-import json
 from typing import Union
-
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -97,5 +94,6 @@ class Auth:
 
     def __set_token(self, body) -> None:
         self.__access_token = Token(body["access_token"], body["expires_in"])
-        self.__refresh_token = Token(body["refresh_token"], body["refresh_expires_in"])
+        self.__refresh_token = Token(
+            body["refresh_token"], body["refresh_expires_in"])
         self.__timestamp = time.time()

@@ -5,7 +5,6 @@ from typing import TypedDict
 import requests
 import logging
 import json
-import datetime
 
 log = logging.getLogger(__name__)
 
@@ -25,26 +24,26 @@ def base_headers(access_token: str) -> HttpHeaders:
     }
 
 
-def falkor_post(url, payload, headers):
-    response = requests.post(url, headers=headers, json=payload, timeout=120)
+def falkor_post(url: str, payload: dict, auth: auth.Auth, extra_headers=None):
+    response = requests.post(url, headers=base_headers(auth.access_token), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_put(url, payload, headers):
-    response = requests.put(url, headers=headers, json=payload, timeout=120)
+def falkor_put(url: str, payload: dict, auth: auth.Auth, extra_headers=None):
+    response = requests.put(url, headers=base_headers(auth.access_token), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_get(url, headers):
-    response = requests.get(url, headers=headers, timeout=120)
+def falkor_get(url: str, auth: auth.Auth, extra_headers=None):
+    response = requests.get(url, headers=base_headers(auth.access_token), timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_delete(url, headers):
-    response = requests.delete(url, headers=headers, timeout=120)
+def falkor_delete(url: str, auth: auth.Auth, extra_headers=None):
+    response = requests.delete(url, headers=base_headers(auth.access_token), timeout=120)
     log.debug(response.json())
     return response
 
@@ -56,7 +55,11 @@ class Falkor:
     __tenant_id: str
 
     def __init__(
-        self, auth: auth.Auth, tenant_id: str, core_base_url: str, admin_base_url: str
+        self,
+        auth: auth.Auth,
+        tenant_id: str,
+        core_base_url: str,
+        admin_base_url: str
     ):
         self.__auth = auth
         self.__tenant_id = tenant_id
@@ -97,7 +100,7 @@ class Falkor:
         )
 
         log.debug(f"Read for document with id {resource_id}")
-        jobs.enqueue(falkor_get, [url, base_headers(self.__auth.access_token)])
+        jobs.enqueue(falkor_get, [url, self.__auth])
 
     def document_create(
         self,
@@ -127,7 +130,7 @@ class Falkor:
 
         log.debug(f"Creating document with id {resource_id}")
         jobs.enqueue(
-            falkor_post, [url, payload, base_headers(self.__auth.access_token)]
+            falkor_post, [url, payload, self.__auth]
         )
 
     def document_update(self, resource):
@@ -146,7 +149,7 @@ class Falkor:
 
         log.debug(f"Updating document with id {resource_id}")
         jobs.enqueue(
-            falkor_put, [url, resource, base_headers(self.__auth.access_token)]
+            falkor_put, [url, resource, self.__auth]
         )
 
     def document_delete(self, resource):
@@ -163,4 +166,4 @@ class Falkor:
         )
 
         log.debug(f"Deleting document with id {resource_id}")
-        jobs.enqueue(falkor_delete, [url, base_headers(self.__auth.access_token)])
+        jobs.enqueue(falkor_delete, [url, self.__auth])
