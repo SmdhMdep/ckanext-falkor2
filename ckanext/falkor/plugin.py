@@ -96,6 +96,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 return
 
         elif isinstance(entity, model.Package):
+            package = table_dictize(entity, context)
+            test = toolkit.get_action(
+                "package_activity_list")(data_dict={"id": package["id"], "limit": 100, "offset": 0})
+            log.info(test)
+
             if operation == DomainObjectOperation.new:
                 package = table_dictize(entity, context)
                 self.falkor.dataset_create(package)
@@ -116,8 +121,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
         organisation_name = organisation_info["title"]
 
         url = f"{self.audit_base_url}{package_id}/{resource_id}"
-        query = f"?dataset_name={package_name}&org_name={
-            organisation_name}&doc_name={resource_name}"
+        query = (
+            f"?dataset_name={package_name}"
+            f"&org_name={organisation_name}"
+            f"&doc_name={resource_name}"
+        )
         return url + query
 
     def get_helpers(self):
