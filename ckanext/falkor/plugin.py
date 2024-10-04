@@ -4,7 +4,6 @@ import ckan.plugins.toolkit as toolkit
 import logging
 
 import ckan.model as model
-from ckan.common import config as ckanconfig
 
 from ckan.lib.dictization import table_dictize
 from ckan.model.domain_object import DomainObjectOperation
@@ -39,11 +38,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
         self.config = config
         endpoint = get_config_value(config, "ckanext.falkor.auth.endpoint")
         client_id = get_config_value(config, "ckanext.falkor.auth.client_id")
-        client_secret = get_config_value(config, "ckanext.falkor.auth.client_secret")
+        client_secret = get_config_value(
+            config, "ckanext.falkor.auth.client_secret")
         username = get_config_value(config, "ckanext.falkor.auth.username")
         password = get_config_value(config, "ckanext.falkor.auth.password")
 
-        credentials = auth.Credentials(client_id, client_secret, username, password)
+        credentials = auth.Credentials(
+            client_id, client_secret, username, password)
         auth_client = auth.Auth(
             credentials,
             endpoint,
@@ -51,8 +52,10 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         tenant_id = get_config_value(config, "ckanext.falkor.tenant_id")
         core_api_url = get_config_value(config, "ckanext.falkor.core_api_url")
-        admin_api_url = get_config_value(config, "ckanext.falkor.admin_api_url")
-        self.audit_base_url = get_config_value(config, "ckanext.falkor.audit_base_url")
+        admin_api_url = get_config_value(
+            config, "ckanext.falkor.admin_api_url")
+        self.audit_base_url = get_config_value(
+            config, "ckanext.falkor.audit_base_url")
 
         self.falkor = falkor_client.Falkor(
             auth_client, tenant_id, core_api_url, admin_api_url
@@ -80,7 +83,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 organisation_info = package_info["organization"]
                 organisation_id = organisation_info["id"]
 
-                self.falkor.document_create(resource, organisation_id, package_id)
+                self.falkor.document_create(
+                    resource, organisation_id, package_id)
 
             elif operation == DomainObjectOperation.changed:
                 resource = table_dictize(entity, context)
@@ -105,14 +109,16 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         package_id = resource["package_id"]
 
-        package_info = toolkit.get_action("package_show")(data_dict={"id": package_id})
+        package_info = toolkit.get_action(
+            "package_show")(data_dict={"id": package_id})
         package_name = package_info["name"]
 
         organisation_info = package_info["organization"]
         organisation_name = organisation_info["title"]
 
         url = f"{self.audit_base_url}{package_id}/{resource_id}"
-        query = f"?dataset_name={package_name}&org_name={organisation_name}&doc_name={resource_name}"
+        query = f"?dataset_name={package_name}&org_name={
+            organisation_name}&doc_name={resource_name}"
         return url + query
 
     def get_helpers(self):
