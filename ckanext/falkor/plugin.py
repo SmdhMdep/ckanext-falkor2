@@ -69,7 +69,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
     # IDomainObjectNotification & #IResourceURLChange
     def notify(self, entity, operation=None):
         context = {"model": model, "ignore_auth": True, "defer_commit": True}
-
         if isinstance(entity, model.Resource):
             if operation == DomainObjectOperation.new:
                 resource = table_dictize(entity, context)
@@ -98,8 +97,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         elif isinstance(entity, model.Package):
             if operation == DomainObjectOperation.new:
-                resource = table_dictize(entity, context)
-                self.falkor.dataset_create(resource)
+                package = table_dictize(entity, context)
+                self.falkor.dataset_create(package)
             else:
                 return
 
