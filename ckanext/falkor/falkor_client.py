@@ -13,9 +13,7 @@ HttpHeaders = TypedDict(
 )
 
 
-def base_headers(access_token: str) -> HttpHeaders:
-    user = toolkit.g.userobj
-    user_id = "guest" if not user else user.id
+def base_headers(access_token: str, user_id: str) -> HttpHeaders:
     return {
         "Content-Type": "application/json",
         "accept": "application/json",
@@ -24,26 +22,31 @@ def base_headers(access_token: str) -> HttpHeaders:
     }
 
 
-def falkor_post(url: str, payload: dict, auth: auth.Auth, extra_headers=None):
-    response = requests.post(url, headers=base_headers(auth.access_token), json=payload, timeout=120)
+def get_user_id() -> str:
+    user = toolkit.g.userobj
+    return "guest" if not user else user.id
+
+
+def falkor_post(url: str, payload: dict, auth: auth.Auth, user_id: str):
+    response = requests.post(url, headers=base_headers(auth.access_token, user_id), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_put(url: str, payload: dict, auth: auth.Auth, extra_headers=None):
-    response = requests.put(url, headers=base_headers(auth.access_token), json=payload, timeout=120)
+def falkor_put(url: str, payload: dict, auth: auth.Auth, user_id: str):
+    response = requests.put(url, headers=base_headers(auth.access_token, user_id), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_get(url: str, auth: auth.Auth, extra_headers=None):
-    response = requests.get(url, headers=base_headers(auth.access_token), timeout=120)
+def falkor_get(url: str, auth: auth.Auth, user_id: str):
+    response = requests.get(url, headers=base_headers(auth.access_token, user_id), timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_delete(url: str, auth: auth.Auth, extra_headers=None):
-    response = requests.delete(url, headers=base_headers(auth.access_token), timeout=120)
+def falkor_delete(url: str, auth: auth.Auth, user_id: str):
+    response = requests.delete(url, headers=base_headers(auth.access_token, user_id), timeout=120)
     log.debug(response.json())
     return response
 
@@ -83,7 +86,7 @@ class Falkor:
         # run async request
         log.debug(f"Create dataset with id {resource_id}")
         jobs.enqueue(
-            falkor_post, [url, payload, base_headers(self.__auth.access_token)]
+            falkor_post, [url, payload, self.__auth, get_user_id()]
         )
 
     def document_read(self, resource):
@@ -100,7 +103,7 @@ class Falkor:
         )
 
         log.debug(f"Read for document with id {resource_id}")
-        jobs.enqueue(falkor_get, [url, self.__auth])
+        jobs.enqueue(falkor_get, [url, self.__auth, get_user_id()])
 
     def document_create(
         self,
@@ -130,7 +133,7 @@ class Falkor:
 
         log.debug(f"Creating document with id {resource_id}")
         jobs.enqueue(
-            falkor_post, [url, payload, self.__auth]
+            falkor_post, [url, payload, self.__auth, get_user_id()]
         )
 
     def document_update(self, resource):
@@ -149,7 +152,7 @@ class Falkor:
 
         log.debug(f"Updating document with id {resource_id}")
         jobs.enqueue(
-            falkor_put, [url, resource, self.__auth]
+            falkor_put, [url, resource, self.__auth, get_user_id()]
         )
 
     def document_delete(self, resource):
@@ -166,4 +169,4 @@ class Falkor:
         )
 
         log.debug(f"Deleting document with id {resource_id}")
-        jobs.enqueue(falkor_delete, [url, self.__auth])
+        jobs.enqueue(falkor_delete, [url, self.__auth, get_user_id()])
