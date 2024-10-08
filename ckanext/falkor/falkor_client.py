@@ -1,10 +1,12 @@
-from ckanext.falkor import auth
-import ckan.lib.jobs as jobs
-import ckan.plugins.toolkit as toolkit
-from typing import TypedDict
 import requests
 import logging
 import json
+import ckan.lib.jobs as jobs
+import ckan.plugins.toolkit as toolkit
+import ckan.model as model
+
+from typing import TypedDict
+from ckanext.falkor import auth
 
 log = logging.getLogger(__name__)
 
@@ -73,11 +75,10 @@ class Falkor:
         self.__core_base_url = core_base_url
         self.__admin_base_url = admin_base_url
 
-    def dataset_create(self, resource):
-        resource_id = str(resource["id"])
+    def dataset_create(self, resource: model.Resource):
         url = self.__admin_base_url + self.__tenant_id + "/dataset"
         payload = {
-            "datasetId": resource_id,
+            "datasetId": resource.id,
             "encryptionType": "none",
             "externalStorage": "false",
             "permissionEnabled": "false",
@@ -88,14 +89,12 @@ class Falkor:
         }
 
         # run async request
-        log.debug(f"Create dataset with id {resource_id}")
+        log.debug(f"Create dataset with id {resource.id}")
         jobs.enqueue(
             falkor_post, [url, payload, self.__auth, get_user_id()]
         )
 
-    def document_read(self, resource):
-        resource_id = str(resource["id"])
-        package_id = str(resource["package_id"])
+    def document_read(self, package_id: str, resource_id: str):
         url = (
             self.__core_base_url
             + self.__tenant_id
@@ -111,66 +110,57 @@ class Falkor:
 
     def document_create(
         self,
-        resource: dict,
+        resource: model.Resource,
         organisation_id: str,
-        package_id: str,
     ):
-        resource_id = str(resource["id"])
-        package_id = str(resource["package_id"])
 
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + package_id
+            + resource.package_id
             + "/create"
         )
         payload = {
-            "documentId": resource_id,
-            "data": json.dumps(resource),
+            "documentId": resource.id,
+            "data": json.dumps(resource.as_dict()),
             "tags": {
                 "organisation_id": organisation_id,
-                "package_id": package_id,
-                "resource_id": resource_id,
+                "package_id": resource.package_id,
+                "resource_id": resource.id,
             },
         }
 
-        log.debug(f"Creating document with id {resource_id}")
+        log.debug(f"Creating document with id {resource.id}")
         jobs.enqueue(
             falkor_post, [url, payload, self.__auth, get_user_id()]
         )
 
-    def document_update(self, resource):
-        resource_id = str(resource["id"])
-        package_id = str(resource["package_id"])
-
+    def document_update(self, resource: model.Resource):
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + package_id
+            + resource.package_id
             + "/"
-            + resource_id
+            + resource.id
             + "/body"
         )
 
-        log.debug(f"Updating document with id {resource_id}")
+        log.debug(f"Updating document with id {resource.id}")
         jobs.enqueue(
-            falkor_put, [url, resource, self.__auth, get_user_id()]
+            falkor_put, [url, resource.as_dict(), self.__auth, get_user_id()]
         )
 
-    def document_delete(self, resource):
-        resource_id = str(resource["id"])
-        package_id = str(resource["package_id"])
-
+    def document_delete(self, resource: model.Resource):
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + package_id
+            + resource.package_id
             + "/"
-            + resource_id
+            + resource.id
         )
 
-        log.debug(f"Deleting document with id {resource_id}")
+        log.debug(f"Deleting document with id {resource.id}")
         jobs.enqueue(falkor_delete, [url, self.__auth, get_user_id()])

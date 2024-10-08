@@ -63,34 +63,31 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     # IResourceController
     def before_show(self, resource_dict):
-        self.falkor.document_read(resource_dict)
+        self.falkor.document_read(
+            package_id=resource_dict["id"],
+            resource_id=resource_dict["package_id"]
+        )
         self.get_helpers()
 
     # IDomainObjectNotification & #IResourceURLChange
     def notify(self, entity, operation=None):
         context = {"model": model, "ignore_auth": True, "defer_commit": True}
         if isinstance(entity, model.Resource):
+            resource: model.Resource = entity
             if operation == DomainObjectOperation.new:
-                resource = table_dictize(entity, context)
-
-                package_id = resource["package_id"]
-
                 package_info = toolkit.get_action("package_show")(
-                    data_dict={"id": package_id}
+                    data_dict={"id": resource.package_id}
                 )
 
                 organisation_info = package_info["organization"]
                 organisation_id = organisation_info["id"]
 
-                self.falkor.document_create(
-                    resource, organisation_id, package_id)
+                self.falkor.document_create(resource, organisation_id)
 
             elif operation == DomainObjectOperation.changed:
-                resource = table_dictize(entity, context)
                 self.falkor.document_update(resource)
 
             elif operation == DomainObjectOperation.deleted:
-                resource = table_dictize(entity, context)
                 self.falkor.document_delete(resource)
             else:
                 return
