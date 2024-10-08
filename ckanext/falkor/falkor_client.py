@@ -28,25 +28,29 @@ def get_user_id() -> str:
 
 
 def falkor_post(url: str, payload: dict, auth: auth.Auth, user_id: str):
-    response = requests.post(url, headers=base_headers(auth.access_token, user_id), json=payload, timeout=120)
+    response = requests.post(url, headers=base_headers(
+        auth.access_token, user_id), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
 def falkor_put(url: str, payload: dict, auth: auth.Auth, user_id: str):
-    response = requests.put(url, headers=base_headers(auth.access_token, user_id), json=payload, timeout=120)
+    response = requests.put(url, headers=base_headers(
+        auth.access_token, user_id), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
 def falkor_get(url: str, auth: auth.Auth, user_id: str):
-    response = requests.get(url, headers=base_headers(auth.access_token, user_id), timeout=120)
+    response = requests.get(url, headers=base_headers(
+        auth.access_token, user_id), timeout=120)
     log.debug(response.json())
     return response
 
 
 def falkor_delete(url: str, auth: auth.Auth, user_id: str):
-    response = requests.delete(url, headers=base_headers(auth.access_token, user_id), timeout=120)
+    response = requests.delete(url, headers=base_headers(
+        auth.access_token, user_id), timeout=120)
     log.debug(response.json())
     return response
 
