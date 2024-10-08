@@ -97,9 +97,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         elif isinstance(entity, model.Package):
             package = table_dictize(entity, context)
-            test = toolkit.get_action(
-                "package_activity_list")(data_dict={"id": package["id"], "limit": 100, "offset": 0})
-            log.info(test)
 
             if operation == DomainObjectOperation.new:
                 package = table_dictize(entity, context)
