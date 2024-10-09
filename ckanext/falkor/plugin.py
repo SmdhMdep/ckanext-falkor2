@@ -1,16 +1,51 @@
+import logging
+import datetime
+import uuid
+
+import sqlalchemy as sa
+
+from sqlalchemy.ext.declarative import declarative_base
+
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
-
-import logging
-
 import ckan.model as model
 
 from ckan.lib.dictization import table_dictize
 from ckan.model.domain_object import DomainObjectOperation
-
 from ckanext.falkor import falkor_client, auth
 
 log = logging.getLogger(__name__)
+
+Base = declarative_base(metadata=model.meta.metadata)
+
+
+class FalkorEvent(Base):
+    __tablename__ = "falkor_event"
+
+    id = sa.Column(sa.TEXT, primary_key=True, nullable=False)
+    object_id = sa.Column(sa.TEXT, nullable=False)
+    object_type = sa.Column(sa.TEXT, nullable=False)
+    status = sa.Column(sa.TEXT, default="NOT_SYNCED")
+    created_at = sa.Column(sa.DateTime(), nullable=False)
+    synced_at = sa.Column(sa.DateTime(), nullable=False)
+
+
+def new_falkor_event(
+    id: str,
+    object_id: str,
+    object_type: str,
+    status: str,
+    created_at: sa.DateTime,
+    synced_at: sa.DateTime
+) -> FalkorEvent:
+    return FalkorEvent(
+        id=id,
+        object_id=object_id,
+        object_type=object_type,
+        status=status,
+        created_at=created_at,
+        synced_at=synced_at
+    )
 
 
 def get_config_value(config, key: str) -> str:
@@ -22,6 +57,7 @@ def get_config_value(config, key: str) -> str:
 
 class FalkorPlugin(plugins.SingletonPlugin):
     falkor: falkor_client.Falkor
+    engine: sa.engine.Engine
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
@@ -61,11 +97,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
             auth_client, tenant_id, core_api_url, admin_api_url
         )
 
+        self.engine = model.meta.engine
+
     # IResourceController
     def before_show(self, resource_dict):
-        self.falkor.document_read(
-            package_id=resource_dict["id"],
-            resource_id=resource_dict["package_id"]
+        self.handle_resource_read(
+            resource_id=resource_dict["id"],
+            package_id=resource_dict["package_id"]
         )
         self.get_helpers()
 
@@ -124,3 +162,27 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def get_helpers(self):
         return {"construct_falkor_url": self.construct_falkor_url}
+
+    def handle_resource_read(self, resource_id: str, package_id: str):
+        session = sa.orm.Session(bind=self.engine)
+        try:
+            event = new_falkor_event(
+                id=uuid.uuid4(),
+                object_id=resource_id,
+                object_type="resource",
+                status="pending",
+                created_at=datetime.datetime.now(),
+                synced_at=None,
+            )
+            session.add(event)
+            session.commit()
+
+            self.falkor.document_read(
+                package_id=resource_id,
+                resource_id=package_id
+            )
+            log.info(session.query(FalkorEvent).all())
+        except:
+            session.rollback()
+        finally:
+            session.close()
