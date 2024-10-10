@@ -2,6 +2,8 @@ import logging
 import datetime
 import uuid
 
+from typing import Optional
+
 import sqlalchemy as sa
 
 from sqlalchemy.ext.declarative import declarative_base
@@ -64,6 +66,10 @@ class FalkorPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
+    plugins.implements(plugins.IActions)
+
+    def get_actions(self):
+        return {"hello_world": hello_world}
 
     # IConfigurer
     def update_config(self, config):
@@ -186,3 +192,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
             session.rollback()
         finally:
             session.close()
+
+
+@toolkit.side_effect_free
+def hello_world(context, data_dict: Optional[dict] = None) -> str:
+    return {"message": f"Hello, {data_dict['name'] if 'name' in data_dict else 'World'}!"}
