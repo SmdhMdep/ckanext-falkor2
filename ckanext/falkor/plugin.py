@@ -3,6 +3,7 @@ import datetime
 import uuid
 
 from typing import Optional
+from enum import Enum
 
 import sqlalchemy as sa
 
@@ -21,24 +22,43 @@ log = logging.getLogger(__name__)
 Base = declarative_base(metadata=model.meta.metadata)
 
 
+class FalkorEventObjectType(Enum):
+    PACKAGE = 'package'
+    RESOURCE = 'resource'
+
+
+class FalkorEventStatus(Enum):
+    PENDING = 'pending'
+    FAILED = 'failed'
+    SYNCED = 'synced'
+
+
 class FalkorEvent(Base):
     __tablename__ = "falkor_event"
 
-    id = sa.Column(sa.TEXT, primary_key=True, nullable=False)
-    object_id = sa.Column(sa.TEXT, nullable=False)
-    object_type = sa.Column(sa.TEXT, nullable=False)
-    status = sa.Column(sa.TEXT, default="NOT_SYNCED")
-    created_at = sa.Column(sa.DateTime(), nullable=False)
-    synced_at = sa.Column(sa.DateTime(), nullable=False)
+    id = sa.Column(
+        sa.dialects.postgresql.UUID,
+        primary_key=True,
+        nullable=False,
+        default=uuid.uuid4
+    )
+    object_id = sa.Column(sa.dialects.postgresql.UUID, nullable=False)
+    object_type = sa.Column(sa.Enum(FalkorEventObjectType), nullable=False)
+    status = sa.Column(
+        sa.Enum(FalkorEventStatus),
+        default=FalkorEventStatus.PENDING
+    )
+    created_at = sa.Column(sa.DateTime, nullable=False)
+    synced_at = sa.Column(sa.DateTime, nullable=False)
 
 
 def new_falkor_event(
-    id: str,
-    object_id: str,
-    object_type: str,
-    status: str,
+    id: uuid.UUID,
+    object_id: uuid.UUID,
+    object_type: FalkorEventObjectType,
     created_at: sa.DateTime,
-    synced_at: sa.DateTime
+    status: FalkorEventStatus = FalkorEventStatus.PENDING,
+    synced_at: Optional[sa.DateTime] = None
 ) -> FalkorEvent:
     return FalkorEvent(
         id=id,
@@ -197,3 +217,50 @@ class FalkorPlugin(plugins.SingletonPlugin):
 @toolkit.side_effect_free
 def hello_world(context, data_dict: Optional[dict] = None) -> str:
     return {"message": f"Hello, {data_dict['name'] if 'name' in data_dict else 'World'}!"}
+
+
+class EventHandler:
+    falkor: falkor_client.Falkor
+    engine: sa.engine.Engine
+
+    def __init__(self, falkor: falkor_client.Falkor, engine: sa.engine.Engine):
+        self.falkor = falkor
+        self.engine = engine
+
+    def handle_package_create(self):
+        pass
+
+    def handle_resource_create(self):
+        pass
+
+    def handle_resource_read(self):
+        pass
+
+    def handle_resource_update(self):
+        pass
+
+    def handle_resource_delete(self):
+        pass
+
+    def __insert_pending_event(
+        self,
+        event_id: uuid.UUID,
+        object_id: uuid.UUID,
+        object_type: FalkorEventObjectType,
+        created_at: datetime.datetime
+    ):
+        session = sa.orm.Session(bind=self.engine)
+        try:
+            event = new_falkor_event(
+                id=event_id,
+                object_id=object_id,
+                object_type=object_type,
+                created_at=created_at,
+            )
+            session.add(event)
+            session.commit()
+        except Exception as e:
+            logging.critical(e, exc_info=True)
+            session.rollback()
+        finally:
+            session.close()
