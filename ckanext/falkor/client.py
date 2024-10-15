@@ -57,7 +57,7 @@ def falkor_delete(url: str, auth: auth.Auth, user_id: str):
     return response
 
 
-class Falkor:
+class Client:
     __auth: auth.Auth
     __core_base_url: str
     __admin_base_url: str

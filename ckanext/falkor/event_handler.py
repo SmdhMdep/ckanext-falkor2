@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 from datetime import datetime
 from ckanext.falkor.model import FalkorEventObjectType, new_falkor_event
-from ckanext.falkor.falkor_client import Falkor
+from ckanext.falkor.client import Client
 from ckan.model import meta
 
 log = logging.getLogger(__name__)
@@ -16,10 +16,10 @@ def generate_event_id() -> str:
 
 
 class EventHandler:
-    falkor: Falkor
+    falkor: Client
     engine: sa.engine.Engine
 
-    def __init__(self, falkor: Falkor):
+    def __init__(self, falkor: Client):
         self.falkor = falkor
         self.engine = meta.engine
 

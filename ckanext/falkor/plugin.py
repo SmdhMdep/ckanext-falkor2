@@ -6,7 +6,7 @@ import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
 
 from ckan.lib.dictization import table_dictize
-from ckanext.falkor import falkor_client, auth, event_handler
+from ckanext.falkor import client, auth, event_handler
 from ckan.model.domain_object import DomainObjectOperation
 
 
@@ -26,7 +26,7 @@ def get_user_id() -> str:
 
 
 class FalkorPlugin(plugins.SingletonPlugin):
-    falkor: falkor_client.Falkor
+    falkor: client.Client
     engine: sa.engine.Engine
     event_handler: event_handler.EventHandler
 
@@ -67,11 +67,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
         self.audit_base_url = get_config_value(
             config, "ckanext.falkor.audit_base_url")
 
-        self.falkor = falkor_client.Falkor(
+        self.falkor = client.Client(
             auth_client, tenant_id, core_api_url, admin_api_url
         )
 
-        self.event_handler = EventHandler(self.falkor)
+        self.event_handler = event_handler.EventHandler(self.falkor)
 
     # IResourceController
     def before_show(self, resource_dict):
