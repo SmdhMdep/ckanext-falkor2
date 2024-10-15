@@ -89,6 +89,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
             "ignore_auth": True,
             "defer_commit": True
         }
+
+        # TODO: Figure out a way to filter out package create events that are
+        # a result of a new resource
         if isinstance(entity, ckan_model.Package):
             package = table_dictize(entity, context)
 
@@ -104,6 +107,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         elif isinstance(entity, ckan_model.Resource):
             resource = table_dictize(entity, context)
+
+            # We do not want to create documents on Falkor that are still
+            # in draft on CKAN.
+            if resource["state"] != "active":
+                return
+
+            log.info(resource)
             # self.handle_resource_modification_event(resource, operation)
 
     def handle_resource_modification_event(
