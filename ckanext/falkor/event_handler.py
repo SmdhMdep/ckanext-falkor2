@@ -1,9 +1,9 @@
 
 import logging
-import uuid
 import sqlalchemy as sa
 
 from datetime import datetime
+from uuid import UUID, uuid4
 from ckanext.falkor.model import FalkorEventObjectType, FalkorEventType, new_falkor_event
 from ckanext.falkor.client import Client
 from ckan.model import meta
@@ -11,8 +11,8 @@ from ckan.model import meta
 log = logging.getLogger(__name__)
 
 
-def generate_event_id() -> str:
-    return uuid.uuid4()
+def generate_event_id() -> UUID:
+    return uuid4()
 
 
 class EventHandler:
@@ -23,19 +23,21 @@ class EventHandler:
         self.falkor = falkor
         self.engine = meta.engine
 
-    def handle_package_create(self, package: dict):
+    def handle_package_create(self, package: dict, user_id: str):
+        log.info(package)
         self.__insert_pending_event(
             event_id=generate_event_id(),
-            object_id=package["id"],
+            object_id=UUID(package["id"]),
             object_type=FalkorEventObjectType.PACKAGE,
             event_type=FalkorEventType.CREATE,
-            created_at=package["created_at"]
+            user_id=user_id,
+            created_at=package["metadata_created"]
         )
 
-    def handle_resource_create(self, resource: dict):
+    def handle_resource_create(self, resource: dict, user_id: str):
         self.__insert_pending_event(
             event_id=generate_event_id(),
-            object_id=resource["id"],
+            object_id=UUID(resource["id"]),
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.CREATE,
             created_at=resource["created_at"]
@@ -43,8 +45,9 @@ class EventHandler:
 
     def handle_resource_read(
             self,
-            resource_id: str,
-            package_id: str,
+            resource_id: UUID,
+            package_id: UUID,
+            user_id: str,
             created_at: datetime = datetime.now()
     ):
         self.__insert_pending_event(
@@ -55,19 +58,19 @@ class EventHandler:
             created_at=created_at
         )
 
-    def handle_resource_update(self, resource: dict):
+    def handle_resource_update(self, resource: dict, user_id: str):
         self.__insert_pending_event(
             event_id=generate_event_id(),
-            object_id=resource["id"],
+            object_id=UUID(resource["id"]),
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.UPDATE,
             created_at=resource["created_at"]
         )
 
-    def handle_resource_delete(self, resource: dict):
+    def handle_resource_delete(self, resource: dict, user_id: str):
         self.__insert_pending_event(
             event_id=generate_event_id(),
-            object_id=resource["id"],
+            object_id=UUID(resource["id"]),
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.DELETE,
             created_at=resource["created_at"]
@@ -75,11 +78,12 @@ class EventHandler:
 
     def __insert_pending_event(
         self,
-        event_id: uuid.UUID,
-        object_id: uuid.UUID,
+        event_id: UUID,
+        object_id: UUID,
         object_type: FalkorEventObjectType,
         event_type: FalkorEventType,
-        created_at: datetime
+        user_id: str,
+        created_at: datetime,
     ):
         session = sa.orm.Session(bind=self.engine)
         try:
@@ -88,6 +92,7 @@ class EventHandler:
                 object_id=object_id,
                 object_type=object_type,
                 event_type=event_type,
+                user_id=user_id,
                 created_at=created_at,
             )
             session.add(event)

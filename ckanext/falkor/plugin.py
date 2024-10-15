@@ -75,10 +75,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     # IResourceController
     def before_show(self, resource_dict):
-        self.event_handler.handle_resource_read(
-            resource_id=resource_dict["id"],
-            package_id=resource_dict["package_id"]
-        )
+        # self.event_handler.handle_resource_read(
+        #     resource_id=resource_dict["id"],
+        #     package_id=resource_dict["package_id"],
+        #     user_id=get_user_id()
+        # )
         self.get_helpers()
 
     def notify(self, entity, operation=None):
@@ -89,13 +90,20 @@ class FalkorPlugin(plugins.SingletonPlugin):
         }
         if isinstance(entity, ckan_model.Package):
             package = table_dictize(entity, context)
+
+            # We do not want to create datasets on Falkor that are still
+            # in draft on CKAN.
+            if package["state"] != "active":
+                return
+
             self.event_handler.handle_package_create(
-                id=package["id"],
-                created_at=package["metadata_created"]
+                package=package,
+                user_id=get_user_id()
             )
+
         elif isinstance(entity, ckan_model.Resource):
             resource = table_dictize(entity, context)
-            self.handle_resource_modification_event(resource, operation)
+            # self.handle_resource_modification_event(resource, operation)
 
     def handle_resource_modification_event(
             self,

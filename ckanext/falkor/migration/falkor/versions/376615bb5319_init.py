@@ -46,12 +46,13 @@ def upgrade():
         meta.MetaData(),
         sa.Column(
             "id",
-            sa.dialects.postgresql.UUID,
+            sa.dialects.postgresql.UUID(as_uuid=True),
             primary_key=True,
             nullable=False,
             default=uuid.uuid4
         ),
-        sa.Column("object_id", sa.dialects.postgresql.UUID, nullable=False),
+        sa.Column("object_id", sa.dialects.postgresql.UUID(
+            as_uuid=True), nullable=False),
         sa.Column(
             "object_type",
             sa.Enum(FalkorEventObjectType),
@@ -74,4 +75,5 @@ def downgrade():
         "falkor_event"
     )
     op.execute('DROP TYPE IF EXISTS falkoreventobjecttype;')
+    op.execute('DROP TYPE IF EXISTS falkoreventtype;')
     op.execute('DROP TYPE IF EXISTS falkoreventstatus;')

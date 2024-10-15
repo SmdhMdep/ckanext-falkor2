@@ -24,11 +24,6 @@ def base_headers(access_token: str, user_id: str) -> HttpHeaders:
     }
 
 
-def get_user_id() -> str:
-    user = toolkit.g.userobj
-    return "guest" if not user else user.id
-
-
 def falkor_post(url: str, payload: dict, auth: auth.Auth, user_id: str):
     response = requests.post(url, headers=base_headers(
         auth.access_token, user_id), json=payload, timeout=120)
@@ -90,9 +85,9 @@ class Client:
 
         # run async request
         log.debug(f"Create dataset with id {package_id}")
-        jobs.enqueue(
-            falkor_post, [url, payload, self.__auth, get_user_id()]
-        )
+        # jobs.enqueue(
+        #     falkor_post, [url, payload, self.__auth, get_user_id()]
+        # )
 
     def document_read(self, package_id: str, resource_id: str):
         url = (
@@ -106,7 +101,7 @@ class Client:
         )
 
         log.debug(f"Read for document with id {resource_id}")
-        jobs.enqueue(falkor_get, [url, self.__auth, get_user_id()])
+        # jobs.enqueue(falkor_get, [url, self.__auth, get_user_id()])
 
     def document_create(
         self,
@@ -132,9 +127,9 @@ class Client:
         }
 
         log.debug(f"Creating document with id {resource.id}")
-        jobs.enqueue(
-            falkor_post, [url, payload, self.__auth, get_user_id()]
-        )
+        # jobs.enqueue(
+        #     falkor_post, [url, payload, self.__auth, get_user_id()]
+        # )
 
     def document_update(self, resource: model.Resource):
         url = (
@@ -148,9 +143,9 @@ class Client:
         )
 
         log.debug(f"Updating document with id {resource.id}")
-        jobs.enqueue(
-            falkor_put, [url, resource.as_dict(), self.__auth, get_user_id()]
-        )
+        # jobs.enqueue(
+        #     falkor_put, [url, resource.as_dict(), self.__auth, get_user_id()]
+        # )
 
     def document_delete(self, resource: model.Resource):
         url = (
@@ -163,4 +158,4 @@ class Client:
         )
 
         log.debug(f"Deleting document with id {resource.id}")
-        jobs.enqueue(falkor_delete, [url, self.__auth, get_user_id()])
+        # jobs.enqueue(falkor_delete, [url, self.__auth, get_user_id()])
