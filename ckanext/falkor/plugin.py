@@ -21,6 +21,7 @@ def get_config_value(config, key: str) -> str:
 
 
 def get_user_id() -> str:
+    # TODO: Make this work outside of application context
     user = toolkit.g.userobj
     return "guest" if not user else user.id
 
