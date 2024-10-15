@@ -35,7 +35,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
-    plugins.implements(plugins.IActions)
+    # plugins.implements(plugins.IActions)
 
     # IConfigurer
     def update_config(self, config):

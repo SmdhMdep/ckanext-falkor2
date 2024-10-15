@@ -73,7 +73,7 @@ class EventHandler:
         event_id: uuid.UUID,
         object_id: uuid.UUID,
         object_type: FalkorEventObjectType,
-        created_at: datetime.datetime
+        created_at: datetime
     ):
         session = sa.orm.Session(bind=self.engine)
         try:
