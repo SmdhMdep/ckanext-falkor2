@@ -4,7 +4,7 @@ import uuid
 import sqlalchemy as sa
 
 from datetime import datetime
-from ckanext.falkor.model import FalkorEventObjectType, new_falkor_event
+from ckanext.falkor.model import FalkorEventObjectType, FalkorEventType, new_falkor_event
 from ckanext.falkor.client import Client
 from ckan.model import meta
 
@@ -28,6 +28,7 @@ class EventHandler:
             event_id=generate_event_id(),
             object_id=package["id"],
             object_type=FalkorEventObjectType.PACKAGE,
+            event_type=FalkorEventType.CREATE,
             created_at=package["created_at"]
         )
 
@@ -36,6 +37,7 @@ class EventHandler:
             event_id=generate_event_id(),
             object_id=resource["id"],
             object_type=FalkorEventObjectType.RESOURCE,
+            event_type=FalkorEventType.CREATE,
             created_at=resource["created_at"]
         )
 
@@ -49,6 +51,7 @@ class EventHandler:
             event_id=generate_event_id(),
             object_id=resource_id,
             object_type=FalkorEventObjectType.RESOURCE,
+            event_type=FalkorEventType.READ,
             created_at=created_at
         )
 
@@ -57,6 +60,7 @@ class EventHandler:
             event_id=generate_event_id(),
             object_id=resource["id"],
             object_type=FalkorEventObjectType.RESOURCE,
+            event_type=FalkorEventType.UPDATE,
             created_at=resource["created_at"]
         )
 
@@ -65,6 +69,7 @@ class EventHandler:
             event_id=generate_event_id(),
             object_id=resource["id"],
             object_type=FalkorEventObjectType.RESOURCE,
+            event_type=FalkorEventType.DELETE,
             created_at=resource["created_at"]
         )
 
@@ -73,6 +78,7 @@ class EventHandler:
         event_id: uuid.UUID,
         object_id: uuid.UUID,
         object_type: FalkorEventObjectType,
+        event_type: FalkorEventType,
         created_at: datetime
     ):
         session = sa.orm.Session(bind=self.engine)
@@ -81,6 +87,7 @@ class EventHandler:
                 id=event_id,
                 object_id=object_id,
                 object_type=object_type,
+                event_type=event_type,
                 created_at=created_at,
             )
             session.add(event)
