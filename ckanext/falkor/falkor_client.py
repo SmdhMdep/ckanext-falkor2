@@ -75,10 +75,10 @@ class Falkor:
         self.__core_base_url = core_base_url
         self.__admin_base_url = admin_base_url
 
-    def dataset_create(self, resource: model.Resource):
+    def dataset_create(self, package_id: str):
         url = self.__admin_base_url + self.__tenant_id + "/dataset"
         payload = {
-            "datasetId": resource.id,
+            "datasetId": package_id,
             "encryptionType": "none",
             "externalStorage": "false",
             "permissionEnabled": "false",
@@ -89,7 +89,7 @@ class Falkor:
         }
 
         # run async request
-        log.debug(f"Create dataset with id {resource.id}")
+        log.debug(f"Create dataset with id {package_id}")
         jobs.enqueue(
             falkor_post, [url, payload, self.__auth, get_user_id()]
         )

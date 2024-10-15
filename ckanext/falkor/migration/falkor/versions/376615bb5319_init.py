@@ -7,9 +7,11 @@ Create Date: 2024-10-07 13:20:12.171995
 """
 from alembic import op
 from ckan.model import meta
-import sqlalchemy as sa
+from enum import Enum
 
+import sqlalchemy as sa
 import logging
+import uuid
 
 log = logging.getLogger(__name__)
 
@@ -19,46 +21,57 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
-# package_table = sa.Table(
-#     "package",
-#     meta.MetaData(),
-#     sa.Column("id", sa.types.UnicodeText,
-#               primary_key=True),
-# )
+
+class FalkorEventObjectType(Enum):
+    PACKAGE = 'package'
+    RESOURCE = 'resource'
+
+
+class FalkorEventStatus(Enum):
+    PENDING = 'pending'
+    FAILED = 'failed'
+    SYNCED = 'synced'
+
+
+class FalkorEventType(Enum):
+    CREATE = "create"
+    READ = "read"
+    UPDATE = "update"
+    DELETE = "delete"
 
 
 def upgrade():
-    # bind = op.get_bind()
-    #
-    # session = orm.Session(bind=bind)
-    # try:
-    # falkor_dataset_sync_table =
     op.create_table(
         "falkor_event",
         meta.MetaData(),
-        sa.Column("id", sa.TEXT, primary_key=True, nullable=False),
-        sa.Column("object_id", sa.TEXT, nullable=False),
-        sa.Column("object_type", sa.TEXT, nullable=False),
-        sa.Column("status", sa.TEXT, default="NOT_SYNCED"),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("synced_at", sa.DateTime(), nullable=True, default=True)
+        sa.Column(
+            "id",
+            sa.dialects.postgresql.UUID,
+            primary_key=True,
+            nullable=False,
+            default=uuid.uuid4
+        ),
+        sa.Column("object_id", sa.dialects.postgresql.UUID, nullable=False),
+        sa.Column(
+            "object_type",
+            sa.Enum(FalkorEventObjectType),
+            nullable=False
+        ),
+        sa.Column("event_type", sa.Enum(FalkorEventType), nullable=False),
+        sa.Column("user_id", sa.TEXT, nullable=False, default="guest"),
+        sa.Column(
+            "status",
+            sa.Enum(FalkorEventStatus),
+            default=FalkorEventStatus.PENDING
+        ),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("synced_at", sa.DateTime, nullable=True)
     )
-
-    # for package in session.query(package_table):
-    #     session.execute(
-    #   falkor_dataset_sync_table.insert().values(id=package[0]))
-    #
-    #    session.commit()
-    #    except Exception as e:
-    #    log.error(e)
-    #    session.rollback()
-    #    finally:
-    #    session.close()
-
-    # model.package.package_table
 
 
 def downgrade():
     op.drop_table(
         "falkor_event"
     )
+    op.execute('DROP TYPE IF EXISTS falkoreventobjecttype;')
+    op.execute('DROP TYPE IF EXISTS falkoreventstatus;')

@@ -1,73 +1,16 @@
 import logging
-import datetime
-import uuid
-
-from typing import Optional
-from enum import Enum
 
 import sqlalchemy as sa
-
-from sqlalchemy.ext.declarative import declarative_base
-
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
-import ckan.model as model
+import ckan.model as ckan_model
 
 from ckan.lib.dictization import table_dictize
+from ckanext.falkor import falkor_client, auth, event_handler
 from ckan.model.domain_object import DomainObjectOperation
-from ckanext.falkor import falkor_client, auth
+
 
 log = logging.getLogger(__name__)
-
-Base = declarative_base(metadata=model.meta.metadata)
-
-
-class FalkorEventObjectType(Enum):
-    PACKAGE = 'package'
-    RESOURCE = 'resource'
-
-
-class FalkorEventStatus(Enum):
-    PENDING = 'pending'
-    FAILED = 'failed'
-    SYNCED = 'synced'
-
-
-class FalkorEvent(Base):
-    __tablename__ = "falkor_event"
-
-    id = sa.Column(
-        sa.dialects.postgresql.UUID,
-        primary_key=True,
-        nullable=False,
-        default=uuid.uuid4
-    )
-    object_id = sa.Column(sa.dialects.postgresql.UUID, nullable=False)
-    object_type = sa.Column(sa.Enum(FalkorEventObjectType), nullable=False)
-    status = sa.Column(
-        sa.Enum(FalkorEventStatus),
-        default=FalkorEventStatus.PENDING
-    )
-    created_at = sa.Column(sa.DateTime, nullable=False)
-    synced_at = sa.Column(sa.DateTime, nullable=False)
-
-
-def new_falkor_event(
-    id: uuid.UUID,
-    object_id: uuid.UUID,
-    object_type: FalkorEventObjectType,
-    created_at: sa.DateTime,
-    status: FalkorEventStatus = FalkorEventStatus.PENDING,
-    synced_at: Optional[sa.DateTime] = None
-) -> FalkorEvent:
-    return FalkorEvent(
-        id=id,
-        object_id=object_id,
-        object_type=object_type,
-        status=status,
-        created_at=created_at,
-        synced_at=synced_at
-    )
 
 
 def get_config_value(config, key: str) -> str:
@@ -77,9 +20,15 @@ def get_config_value(config, key: str) -> str:
     return value
 
 
+def get_user_id() -> str:
+    user = toolkit.g.userobj
+    return "guest" if not user else user.id
+
+
 class FalkorPlugin(plugins.SingletonPlugin):
     falkor: falkor_client.Falkor
     engine: sa.engine.Engine
+    event_handler: event_handler.EventHandler
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
@@ -87,9 +36,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
     plugins.implements(plugins.IActions)
-
-    def get_actions(self):
-        return {"hello_world": hello_world}
 
     # IConfigurer
     def update_config(self, config):
@@ -101,7 +47,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
         endpoint = get_config_value(config, "ckanext.falkor.auth.endpoint")
         client_id = get_config_value(config, "ckanext.falkor.auth.client_id")
         client_secret = get_config_value(
-            config, "ckanext.falkor.auth.client_secret")
+            config,
+            "ckanext.falkor.auth.client_secret"
+        )
         username = get_config_value(config, "ckanext.falkor.auth.username")
         password = get_config_value(config, "ckanext.falkor.auth.password")
 
@@ -123,47 +71,43 @@ class FalkorPlugin(plugins.SingletonPlugin):
             auth_client, tenant_id, core_api_url, admin_api_url
         )
 
-        self.engine = model.meta.engine
+        self.event_handler = EventHandler(self.falkor)
 
     # IResourceController
     def before_show(self, resource_dict):
-        self.handle_resource_read(
+        self.event_handler.handle_resource_read(
             resource_id=resource_dict["id"],
             package_id=resource_dict["package_id"]
         )
         self.get_helpers()
 
-    # IDomainObjectNotification & #IResourceURLChange
     def notify(self, entity, operation=None):
-        context = {"model": model, "ignore_auth": True, "defer_commit": True}
-        if isinstance(entity, model.Resource):
-            resource: model.Resource = entity
-            if operation == DomainObjectOperation.new:
-                package_info = toolkit.get_action("package_show")(
-                    data_dict={"id": resource.package_id}
-                )
-
-                organisation_info = package_info["organization"]
-                organisation_id = organisation_info["id"]
-
-                self.falkor.document_create(resource, organisation_id)
-
-            elif operation == DomainObjectOperation.changed:
-                self.falkor.document_update(resource)
-
-            elif operation == DomainObjectOperation.deleted:
-                self.falkor.document_delete(resource)
-            else:
-                return
-
-        elif isinstance(entity, model.Package):
+        context = {
+            "model": ckan_model,
+            "ignore_auth": True,
+            "defer_commit": True
+        }
+        if isinstance(entity, ckan_model.Package):
             package = table_dictize(entity, context)
+            self.event_handler.handle_package_create(
+                id=package["id"],
+                created_at=package["metadata_created"]
+            )
+        elif isinstance(entity, ckan_model.Resource):
+            resource = table_dictize(entity, context)
+            self.handle_resource_modification_event(resource, operation)
 
-            if operation == DomainObjectOperation.new:
-                package = table_dictize(entity, context)
-                self.falkor.dataset_create(package)
-            else:
-                return
+    def handle_resource_modification_event(
+            self,
+            resource: dict,
+            operation: DomainObjectOperation
+    ):
+        if operation == DomainObjectOperation.new:
+            self.event_handler.handle_resource_create()
+        elif operation == DomainObjectOperation.changed:
+            self.event_handler.handle_resource_update()
+        elif operation == DomainObjectOperation.deleted:
+            self.event_handler.handle_resource_delete()
 
     def construct_falkor_url(self, resource):
         resource_id = resource["id"]
@@ -189,78 +133,31 @@ class FalkorPlugin(plugins.SingletonPlugin):
     def get_helpers(self):
         return {"construct_falkor_url": self.construct_falkor_url}
 
-    def handle_resource_read(self, resource_id: str, package_id: str):
-        session = sa.orm.Session(bind=self.engine)
-        try:
-            event = new_falkor_event(
-                id=uuid.uuid4(),
-                object_id=resource_id,
-                object_type="resource",
-                status="pending",
-                created_at=datetime.datetime.now(),
-                synced_at=None,
-            )
-            session.add(event)
-            session.commit()
-
-            self.falkor.document_read(
-                package_id=resource_id,
-                resource_id=package_id
-            )
-            log.info(session.query(FalkorEvent).all())
-        except:
-            session.rollback()
-        finally:
-            session.close()
-
-
-@toolkit.side_effect_free
-def hello_world(context, data_dict: Optional[dict] = None) -> str:
-    return {"message": f"Hello, {data_dict['name'] if 'name' in data_dict else 'World'}!"}
+    # def handle_resource_read(self, resource_id: str, package_id: str):
+    #     session = sa.orm.Session(bind=self.engine)
+    #     try:
+    #         event = new_falkor_event(
+    #             id=uuid.uuid4(),
+    #             object_id=resource_id,
+    #             object_type="resource",
+    #             status="pending",
+    #             created_at=datetime.datetime.now(),
+    #             synced_at=None,
+    #         )
+    #         session.add(event)
+    #         session.commit()
+    #
+    #         self.falkor.document_read(
+    #             package_id=resource_id,
+    #             resource_id=package_id
+    #         )
+    #         log.info(session.query(FalkorEvent).all())
+    #     except:
+    #         session.rollback()
+    #     finally:
+    #         session.close()
 
 
-class EventHandler:
-    falkor: falkor_client.Falkor
-    engine: sa.engine.Engine
-
-    def __init__(self, falkor: falkor_client.Falkor, engine: sa.engine.Engine):
-        self.falkor = falkor
-        self.engine = engine
-
-    def handle_package_create(self):
-        pass
-
-    def handle_resource_create(self):
-        pass
-
-    def handle_resource_read(self):
-        pass
-
-    def handle_resource_update(self):
-        pass
-
-    def handle_resource_delete(self):
-        pass
-
-    def __insert_pending_event(
-        self,
-        event_id: uuid.UUID,
-        object_id: uuid.UUID,
-        object_type: FalkorEventObjectType,
-        created_at: datetime.datetime
-    ):
-        session = sa.orm.Session(bind=self.engine)
-        try:
-            event = new_falkor_event(
-                id=event_id,
-                object_id=object_id,
-                object_type=object_type,
-                created_at=created_at,
-            )
-            session.add(event)
-            session.commit()
-        except Exception as e:
-            logging.critical(e, exc_info=True)
-            session.rollback()
-        finally:
-            session.close()
+# @toolkit.side_effect_free
+# def hello_world(context, data_dict: Optional[dict] = None) -> str:
+#     return {"message": f"Hello, {data_dict['name'] if 'name' in data_dict else 'World'}!"}
