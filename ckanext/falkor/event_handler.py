@@ -40,7 +40,8 @@ class EventHandler:
             object_id=UUID(resource["id"]),
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.CREATE,
-            created_at=resource["created_at"]
+            user_id=user_id,
+            created_at=resource["created"]
         )
 
     def handle_resource_read(
@@ -55,6 +56,7 @@ class EventHandler:
             object_id=resource_id,
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.READ,
+            user_id=user_id,
             created_at=created_at
         )
 
@@ -64,7 +66,8 @@ class EventHandler:
             object_id=UUID(resource["id"]),
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.UPDATE,
-            created_at=resource["created_at"]
+            user_id=user_id,
+            created_at=resource["created"]
         )
 
     def handle_resource_delete(self, resource: dict, user_id: str):
@@ -73,7 +76,8 @@ class EventHandler:
             object_id=UUID(resource["id"]),
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.DELETE,
-            created_at=resource["created_at"]
+            user_id=user_id,
+            created_at=resource["created"]
         )
 
     def __insert_pending_event(

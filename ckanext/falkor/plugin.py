@@ -90,10 +90,16 @@ class FalkorPlugin(plugins.SingletonPlugin):
             "defer_commit": True
         }
 
-        # TODO: Figure out a way to filter out package create events that are
-        # a result of a new resource
+        user_id = get_user_id()
+
         if isinstance(entity, ckan_model.Package):
             package = table_dictize(entity, context)
+
+            # Currently Falkor does not track changes to packages.
+            # We only use the create event to create the dataset and ignore
+            # any further events.
+            if operation != DomainObjectOperation.new:
+                return
 
             # We do not want to create datasets on Falkor that are still
             # in draft on CKAN.
@@ -102,7 +108,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
             self.event_handler.handle_package_create(
                 package=package,
-                user_id=get_user_id()
+                user_id=user_id
             )
 
         elif isinstance(entity, ckan_model.Resource):
@@ -113,20 +119,24 @@ class FalkorPlugin(plugins.SingletonPlugin):
             if resource["state"] != "active":
                 return
 
-            log.info(resource)
-            # self.handle_resource_modification_event(resource, operation)
+            self.handle_resource_modification_event(
+                resource=resource,
+                operation=operation,
+                user_id=user_id
+            )
 
     def handle_resource_modification_event(
             self,
             resource: dict,
-            operation: DomainObjectOperation
+            operation: DomainObjectOperation,
+            user_id: str,
     ):
         if operation == DomainObjectOperation.new:
-            self.event_handler.handle_resource_create()
+            self.event_handler.handle_resource_create(resource, user_id)
         elif operation == DomainObjectOperation.changed:
-            self.event_handler.handle_resource_update()
+            self.event_handler.handle_resource_update(resource, user_id)
         elif operation == DomainObjectOperation.deleted:
-            self.event_handler.handle_resource_delete()
+            self.event_handler.handle_resource_delete(resource, user_id)
 
     def construct_falkor_url(self, resource):
         resource_id = resource["id"]
