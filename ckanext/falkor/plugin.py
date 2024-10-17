@@ -36,7 +36,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
-    # plugins.implements(plugins.IActions)
 
     # IConfigurer
     def update_config(self, config):
@@ -44,6 +43,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         toolkit.add_public_directory(config, "public")
 
     def configure(self, config):
+        # TODO: Check if plugins has been initialised before tracking events
         self.config = config
         endpoint = get_config_value(config, "ckanext.falkor.auth.endpoint")
         client_id = get_config_value(config, "ckanext.falkor.auth.client_id")
@@ -161,32 +161,3 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def get_helpers(self):
         return {"construct_falkor_url": self.construct_falkor_url}
-
-    # def handle_resource_read(self, resource_id: str, package_id: str):
-    #     session = sa.orm.Session(bind=self.engine)
-    #     try:
-    #         event = new_falkor_event(
-    #             id=uuid.uuid4(),
-    #             object_id=resource_id,
-    #             object_type="resource",
-    #             status="pending",
-    #             created_at=datetime.datetime.now(),
-    #             synced_at=None,
-    #         )
-    #         session.add(event)
-    #         session.commit()
-    #
-    #         self.falkor.document_read(
-    #             package_id=resource_id,
-    #             resource_id=package_id
-    #         )
-    #         log.info(session.query(FalkorEvent).all())
-    #     except:
-    #         session.rollback()
-    #     finally:
-    #         session.close()
-
-
-# @toolkit.side_effect_free
-# def hello_world(context, data_dict: Optional[dict] = None) -> str:
-#     return {"message": f"Hello, {data_dict['name'] if 'name' in data_dict else 'World'}!"}

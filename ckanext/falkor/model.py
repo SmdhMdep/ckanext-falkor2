@@ -120,6 +120,7 @@ def get_sequence_number(session: sa.orm.Session, object_id: UUID):
     object_event_sequence: Union[FalkorObjectEventSequence, None] = session.query(
         FalkorObjectEventSequence).get(object_id)
 
+    # TODO: Seq should always be 1 for CREATE events
     if object_event_sequence is None:
         object_event_sequence = new_falkor_object_event_sequence(
             object_id=object_id)
