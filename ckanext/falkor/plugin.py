@@ -76,11 +76,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     # IResourceController
     def before_show(self, resource_dict):
-        # self.event_handler.handle_resource_read(
-        #     resource_id=resource_dict["id"],
-        #     package_id=resource_dict["package_id"],
-        #     user_id=get_user_id()
-        # )
+        self.event_handler.handle_resource_read(
+            resource_id=resource_dict["id"],
+            package_id=resource_dict["package_id"],
+            user_id=get_user_id()
+        )
         self.get_helpers()
 
     def notify(self, entity, operation=None):

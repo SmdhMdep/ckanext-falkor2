@@ -1,12 +1,17 @@
 
+from ckan.model import meta
+from ckanext.falkor.client import Client
 import logging
 import sqlalchemy as sa
 
 from datetime import datetime
 from uuid import UUID, uuid4
-from ckanext.falkor.model import FalkorEventObjectType, FalkorEventType, new_falkor_event
-from ckanext.falkor.client import Client
-from ckan.model import meta
+from ckanext.falkor.model import (
+    FalkorEventType,
+    FalkorEventObjectType,
+    insert_pending_event,
+    get_sequence_number,
+)
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +29,6 @@ class EventHandler:
         self.engine = meta.engine
 
     def handle_package_create(self, package: dict, user_id: str):
-        log.info(package)
         self.__insert_pending_event(
             event_id=generate_event_id(),
             object_id=UUID(package["id"]),
@@ -51,14 +55,20 @@ class EventHandler:
             user_id: str,
             created_at: datetime = datetime.now()
     ):
-        self.__insert_pending_event(
+        session = sa.orm.Session(bind=self.engine)
+        sequence = get_sequence_number(session, resource_id)
+        insert_pending_event(
+            session=session,
             event_id=generate_event_id(),
             object_id=resource_id,
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.READ,
             user_id=user_id,
+            sequence=sequence,
             created_at=created_at
         )
+
+        session.commit()
 
     def handle_resource_update(self, resource: dict, user_id: str):
         self.__insert_pending_event(
@@ -79,30 +89,3 @@ class EventHandler:
             user_id=user_id,
             created_at=resource["created"]
         )
-
-    def __insert_pending_event(
-        self,
-        event_id: UUID,
-        object_id: UUID,
-        object_type: FalkorEventObjectType,
-        event_type: FalkorEventType,
-        user_id: str,
-        created_at: datetime,
-    ):
-        session = sa.orm.Session(bind=self.engine)
-        try:
-            event = new_falkor_event(
-                id=event_id,
-                object_id=object_id,
-                object_type=object_type,
-                event_type=event_type,
-                user_id=user_id,
-                created_at=created_at,
-            )
-            session.add(event)
-            session.commit()
-        except Exception as e:
-            logging.critical(e, exc_info=True)
-            session.rollback()
-        finally:
-            session.close()
