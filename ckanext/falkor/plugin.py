@@ -8,7 +8,7 @@ import ckan.model as ckan_model
 from ckan.lib.dictization import table_dictize
 from ckanext.falkor import client, auth, event_handler
 from ckan.model.domain_object import DomainObjectOperation
-
+from ckan.lib import jobs
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +21,6 @@ def get_config_value(config, key: str) -> str:
 
 
 def get_user_id() -> str:
-    # TODO: Make this work outside of application context
     user = toolkit.g.userobj
     return "guest" if not user else user.id
 
@@ -76,67 +75,32 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     # IResourceController
     def before_show(self, resource_dict):
-        self.event_handler.handle_resource_read(
-            resource_id=resource_dict["id"],
-            package_id=resource_dict["package_id"],
-            user_id=get_user_id()
+        jobs.enqueue(
+            event_handler.handle_read_event,
+            [
+                self.event_handler,
+                resource_dict,
+                get_user_id()
+            ]
         )
+
         self.get_helpers()
 
-    def notify(self, entity, operation=None):
-        context = {
-            "model": ckan_model,
-            "ignore_auth": True,
-            "defer_commit": True
-        }
-
-        user_id = get_user_id()
-
-        if isinstance(entity, ckan_model.Package):
-            package = table_dictize(entity, context)
-
-            # Currently Falkor does not track changes to packages.
-            # We only use the create event to create the dataset and ignore
-            # any further events.
-            if operation != DomainObjectOperation.new:
-                return
-
-            # We do not want to create datasets on Falkor that are still
-            # in draft on CKAN.
-            if package["state"] != "active":
-                return
-
-            self.event_handler.handle_package_create(
-                package=package,
-                user_id=user_id
-            )
-
-        elif isinstance(entity, ckan_model.Resource):
-            resource = table_dictize(entity, context)
-
-            # We do not want to create documents on Falkor that are still
-            # in draft on CKAN.
-            if resource["state"] != "active":
-                return
-
-            self.handle_resource_modification_event(
-                resource=resource,
-                operation=operation,
-                user_id=user_id
-            )
-
-    def handle_resource_modification_event(
+    def notify(
             self,
-            resource: dict,
-            operation: DomainObjectOperation,
-            user_id: str,
+            entity,
+            operation=None
     ):
-        if operation == DomainObjectOperation.new:
-            self.event_handler.handle_resource_create(resource, user_id)
-        elif operation == DomainObjectOperation.changed:
-            self.event_handler.handle_resource_update(resource, user_id)
-        elif operation == DomainObjectOperation.deleted:
-            self.event_handler.handle_resource_delete(resource, user_id)
+        if operation is None:
+            return
+
+        jobs.enqueue(
+            event_handler.handle_modification_event,
+            args=[
+                self.event_handler,
+                entity, operation, get_user_id()
+            ]
+        )
 
     def construct_falkor_url(self, resource):
         resource_id = resource["id"]
