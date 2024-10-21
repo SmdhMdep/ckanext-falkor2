@@ -10,7 +10,6 @@ from ckanext.falkor.model import (
     FalkorEventType,
     FalkorEventObjectType,
     insert_pending_event,
-    get_sequence_number,
 )
 
 log = logging.getLogger(__name__)
@@ -56,7 +55,6 @@ class EventHandler:
             created_at: datetime = datetime.now()
     ):
         session = sa.orm.Session(bind=self.engine)
-        sequence = get_sequence_number(session, resource_id)
         insert_pending_event(
             session=session,
             event_id=generate_event_id(),
@@ -64,7 +62,6 @@ class EventHandler:
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.READ,
             user_id=user_id,
-            sequence=sequence,
             created_at=created_at
         )
 
