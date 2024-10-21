@@ -49,7 +49,6 @@ class FalkorEvent(Base):
         sa.Enum(FalkorEventStatus),
         default=FalkorEventStatus.PENDING
     )
-    sequence = sa.Column(sa.INTEGER, nullable=False)
     created_at = sa.Column(sa.DateTime, nullable=False)
     synced_at = sa.Column(sa.DateTime, nullable=True)
 
