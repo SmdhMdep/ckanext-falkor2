@@ -96,6 +96,10 @@ def insert_pending_event(
     )
 
 
+def get_pending_events(session: sa.orm.Session) -> List[FalkorEvent]:
+    return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.PENDING).all()
+
+
 def get_packages_without_create_events(session: sa.orm.Session) -> List[Package]:
     distinct_package_creates = session.query(
         FalkorEvent

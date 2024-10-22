@@ -2,8 +2,9 @@ import logging
 
 from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Union
+from typing import Union, Optional
 from ckanext.falkor.model import (
+    FalkorEvent,
     FalkorEventType,
     FalkorEventObjectType,
     insert_pending_event,
@@ -26,17 +27,24 @@ class EventHandler:
     def __init__(self, falkor: Client):
         self.falkor = falkor
 
-    def handle_package_create(self, package: Package, user_id: str):
+    def handle_package_create(
+            self,
+            package_id: str,
+            metadata_created: datetime,
+            user_id: str,
+            event: Optional[FalkorEvent] = None
+    ):
         session = meta.create_local_session()
-        insert_pending_event(
-            session,
-            event_id=generate_event_id(),
-            object_id=UUID(package.id),
-            object_type=FalkorEventObjectType.PACKAGE,
-            event_type=FalkorEventType.CREATE,
-            user_id=user_id,
-            created_at=package.metadata_created
-        )
+        if event is None:
+            event = insert_pending_event(
+                session,
+                event_id=generate_event_id(),
+                object_id=UUID(package_id),
+                object_type=FalkorEventObjectType.PACKAGE,
+                event_type=FalkorEventType.CREATE,
+                user_id=user_id,
+                created_at=metadata_created
+            )
         session.commit()
 
     def handle_resource_create(self, resource: Resource, user_id: str):
@@ -123,7 +131,8 @@ def handle_modification_event(
         if operation != DomainObjectOperation.new:
             return
 
-        handler.handle_package_create(entity, user_id)
+        handler.handle_package_create(
+            entity["id"], entity["metadata_created"], user_id)
 
     elif isinstance(entity, Resource):
         if operation == DomainObjectOperation.new:

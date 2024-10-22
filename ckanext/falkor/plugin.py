@@ -82,11 +82,25 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
             packages = model.get_packages_without_create_events(session)
             for package in packages:
-                self.event_handler.handle_package_create(package, "sync_job")
+                self.event_handler.handle_package_create(
+                    package_id=package.id,
+                    metadata_created=package.metadata_created,
+                    user_id="sync_job"
+                )
 
             resources = model.get_resources_without_create_events(session)
             for resource in resources:
                 self.event_handler.handle_resource_create(resource, "sync_job")
+
+            pending_events = model.get_pending_events(session)
+            for event in pending_events:
+                if event.object_type == model.FalkorEventObjectType.PACKAGE \
+                        and event.event_type == model.FalkorEventType.CREATE:
+                    self.event_handler.handle_package_create(
+                        package_id=event.object_id,
+                        metadata_created=event.created_at,
+                        user_id=event.user_id, event=event
+                    )
 
             job.status = model.FalkorSyncJobStatus.FINISHED
         except Exception as e:
