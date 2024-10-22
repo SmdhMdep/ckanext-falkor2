@@ -3,6 +3,7 @@ import logging
 import sqlalchemy as sa
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
+import ckan.model as ckan_model
 
 from ckanext.falkor import client, auth, event_handler, model
 from ckan.lib import jobs
@@ -73,7 +74,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         session = model.meta.Session
         model.validate_falkor_config(session)
         self.__initialised = model.get_falkor_config(
-           session
+            session
         ).initialised
 
     @property
@@ -85,7 +86,25 @@ class FalkorPlugin(plugins.SingletonPlugin):
             ).initialised
         return self.__initialised
 
+    def initialise_plugin(self):
+        if self.initialised:
+            log.warning("Plugin already initialised")
+            return
+        session: sa.orm.Session = model.meta.create_local_session()
+
+        packages = session.query(ckan_model.Package).all()
+        for package in packages:
+            self.event_handler.handle_package_create(package, "plugin")
+
+        resources = session.query(ckan_model.Resource).all()
+        for resource in resources:
+            self.event_handler.handle_resource_create(resource, "plugin")
+
+        model.initialise_plugin(session)
+        session.commit()
+
     # IResourceController
+
     def before_show(self, resource_dict):
         if not self.initialised:
             return

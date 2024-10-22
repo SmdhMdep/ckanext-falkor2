@@ -1,8 +1,7 @@
 import logging
-import sqlalchemy as sa
 
-from datetime import datetime
 from uuid import UUID, uuid4
+from datetime import datetime
 from typing import Union
 from ckanext.falkor.model import (
     FalkorEventType,

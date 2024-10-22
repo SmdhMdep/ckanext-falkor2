@@ -112,3 +112,8 @@ def validate_falkor_config(session: sa.orm.Session):
         raise Exception(
             f"falkor_config should have exactly 1 row. Has {row_count}"
         )
+
+
+def initialise_plugin(session: sa.orm.Session):
+    config = get_falkor_config(session)
+    config.initialised = True

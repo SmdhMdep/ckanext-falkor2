@@ -1,8 +1,6 @@
 import requests
 import logging
 import json
-import ckan.lib.jobs as jobs
-import ckan.plugins.toolkit as toolkit
 import ckan.model as model
 
 from typing import TypedDict
