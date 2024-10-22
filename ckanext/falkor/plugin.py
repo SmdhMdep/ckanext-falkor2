@@ -71,44 +71,28 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.event_handler = event_handler.EventHandler(self.falkor)
-        session = model.meta.Session
-        model.validate_falkor_config(session)
-        self.__initialised = model.get_falkor_config(
-            session
-        ).initialised
+        self.sync()
 
-    @property
-    def initialised(self):
-        if not self.__initialised:
-            # TODO: Can this be retrieved from redis?
-            self.__initialised = model.get_falkor_config(
-                model.meta.Session
-            ).initialised
-        return self.__initialised
+    def sync(self):
+        try:
+            session: sa.orm.Session = ckan_model.meta.create_local_session()
 
-    def initialise_plugin(self):
-        if self.initialised:
-            log.warning("Plugin already initialised")
-            return
-        session: sa.orm.Session = model.meta.create_local_session()
+            packages = model.get_packages_without_create_events(session)
+            for package in packages:
+                self.event_handler.handle_package_create(package, "sync_job")
 
-        packages = session.query(ckan_model.Package).all()
-        for package in packages:
-            self.event_handler.handle_package_create(package, "plugin")
+            resources = model.get_resources_without_create_events(session)
+            for resource in resources:
+                self.event_handler.handle_resource_create(resource, "sync_job")
 
-        resources = session.query(ckan_model.Resource).all()
-        for resource in resources:
-            self.event_handler.handle_resource_create(resource, "plugin")
+            session.commit()
 
-        model.initialise_plugin(session)
-        session.commit()
+        except Exception as e:
+            log.exception(e)
 
     # IResourceController
 
     def before_show(self, resource_dict):
-        if not self.initialised:
-            return
-
         jobs.enqueue(
             event_handler.handle_read_event,
             [
@@ -125,9 +109,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
             entity,
             operation=None
     ):
-        if not self.initialised:
-            return
-
         if operation is None:
             return
 

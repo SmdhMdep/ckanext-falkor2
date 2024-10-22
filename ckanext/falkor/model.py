@@ -4,9 +4,9 @@ import sqlalchemy as sa
 from enum import Enum
 from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.ext.declarative import declarative_base
-from ckan.model import meta
+from ckan.model import meta, Package, Resource
 
 Base = declarative_base(metadata=meta.metadata)
 
@@ -96,24 +96,41 @@ def insert_pending_event(
     )
 
 
-class FalkorConfig(Base):
-    __tablename__ = "falkor_config"
+def get_packages_without_create_events(session: sa.orm.Session) -> List[Package]:
+    distinct_package_creates = session.query(
+        FalkorEvent
+    ).filter(
+        FalkorEvent.object_type == FalkorEventObjectType.PACKAGE
+    ).filter(
+        FalkorEvent.event_type == FalkorEventType.CREATE
+    ).subquery()
 
-    initialised = sa.Column(sa.Boolean, nullable=False, primary_key=True)
+    return session.query(
+        Package
+    ).outerjoin(
+        distinct_package_creates,
+        Package.id == sa.cast(
+            distinct_package_creates.c.object_id, sa.TEXT)
+    ).filter(
+        sa.cast(distinct_package_creates.c.object_id, sa.TEXT) == None
+    ).all()
 
 
-def get_falkor_config(session: sa.orm.Session) -> FalkorConfig:
-    return session.query(FalkorConfig).first()
+def get_resources_without_create_events(session: sa.orm.Session) -> List[Resource]:
+    distinct_resource_creates = session.query(
+        FalkorEvent
+    ).filter(
+        FalkorEvent.object_type == FalkorEventObjectType.RESOURCE
+    ).filter(
+        FalkorEvent.event_type == FalkorEventType.CREATE
+    ).subquery()
 
-
-def validate_falkor_config(session: sa.orm.Session):
-    row_count = session.query(FalkorConfig).count()
-    if row_count != 1:
-        raise Exception(
-            f"falkor_config should have exactly 1 row. Has {row_count}"
-        )
-
-
-def initialise_plugin(session: sa.orm.Session):
-    config = get_falkor_config(session)
-    config.initialised = True
+    return session.query(
+        Resource
+    ).outerjoin(
+        distinct_resource_creates,
+        Resource.id == sa.cast(
+            distinct_resource_creates.c.object_id, sa.TEXT)
+    ).filter(
+        sa.cast(distinct_resource_creates.c.object_id, sa.TEXT) == None
+    ).all()
