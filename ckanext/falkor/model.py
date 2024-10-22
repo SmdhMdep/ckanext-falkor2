@@ -1,14 +1,14 @@
 import logging
 import sqlalchemy as sa
-import ckan.model as model
 
 from enum import Enum
 from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Optional
 from sqlalchemy.ext.declarative import declarative_base
+from ckan.model import meta
 
-Base = declarative_base(metadata=model.meta.metadata)
+Base = declarative_base(metadata=meta.metadata)
 
 log = logging.getLogger(__name__)
 
@@ -94,3 +94,21 @@ def insert_pending_event(
             created_at=created_at,
         )
     )
+
+
+class FalkorConfig(Base):
+    __tablename__ = "falkor_config"
+
+    initialised = sa.Column(sa.Boolean, nullable=False, primary_key=True)
+
+
+def get_falkor_config(session: sa.orm.Session) -> FalkorConfig:
+    return session.query(FalkorConfig).first()
+
+
+def validate_falkor_config(session: sa.orm.Session):
+    row_count = session.query(FalkorConfig).count()
+    if row_count != 1:
+        raise Exception(
+            f"falkor_config should have exactly 1 row. Has {row_count}"
+        )

@@ -10,7 +10,7 @@ from ckanext.falkor.model import (
     insert_pending_event,
 )
 
-from ckan.model import meta, Package, Resource, State
+from ckan.model import meta, Package, Resource
 from ckanext.falkor.client import Client
 from ckan.model.domain_object import DomainObjectOperation
 

@@ -24,7 +24,7 @@ def upgrade():
     op.create_table(
         TABLE_NAME,
         meta.MetaData(),
-        sa.Column("initialised", sa.Boolean, nullable=False),
+        sa.Column("initialised", sa.Boolean, nullable=False, primary_key=True),
     )
     op.execute("""
         INSERT INTO falkor_config(initialised)

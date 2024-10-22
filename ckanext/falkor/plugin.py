@@ -3,11 +3,8 @@ import logging
 import sqlalchemy as sa
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
-import ckan.model as ckan_model
 
-from ckan.lib.dictization import table_dictize
-from ckanext.falkor import client, auth, event_handler
-from ckan.model.domain_object import DomainObjectOperation
+from ckanext.falkor import client, auth, event_handler, model
 from ckan.lib import jobs
 
 log = logging.getLogger(__name__)
@@ -29,6 +26,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
     falkor: client.Client
     engine: sa.engine.Engine
     event_handler: event_handler.EventHandler
+    __initialised: bool
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
@@ -72,9 +70,24 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.event_handler = event_handler.EventHandler(self.falkor)
+        self.__initialised = model.get_falkor_config(
+            model.meta.Session
+        ).initialised
+
+    @property
+    def initialised(self):
+        if not self.__initialised:
+            # TODO: Can this be retrieved from redis?
+            self.__initialised = model.get_falkor_config(
+                model.meta.Session
+            ).initialised
+        return self.__initialised
 
     # IResourceController
     def before_show(self, resource_dict):
+        if not self.initialised:
+            return
+
         jobs.enqueue(
             event_handler.handle_read_event,
             [
@@ -91,6 +104,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
             entity,
             operation=None
     ):
+        if not self.initialised:
+            return
+
         if operation is None:
             return
 
