@@ -7,6 +7,7 @@ import ckan.model as ckan_model
 
 from ckanext.falkor import client, auth, event_handler, model
 from ckan.lib import jobs
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 
@@ -74,8 +75,10 @@ class FalkorPlugin(plugins.SingletonPlugin):
         self.sync()
 
     def sync(self):
+        session: sa.orm.Session = ckan_model.meta.create_local_session()
+        job = model.new_falkor_sync_job()
         try:
-            session: sa.orm.Session = ckan_model.meta.create_local_session()
+            model.insert_new_falkor_sync_job(session, job)
 
             packages = model.get_packages_without_create_events(session)
             for package in packages:
@@ -85,10 +88,15 @@ class FalkorPlugin(plugins.SingletonPlugin):
             for resource in resources:
                 self.event_handler.handle_resource_create(resource, "sync_job")
 
-            session.commit()
-
+            job.status = model.FalkorSyncJobStatus.FINISHED
         except Exception as e:
-            log.exception(e)
+            log.exception(e, extra={"job_id": job.id})
+            session.rollback()
+            job.status = model.FalkorSyncJobStatus.FAILED
+        finally:
+            job.end = datetime.now()
+            session.commit()
+            session.close()
 
     # IResourceController
 
