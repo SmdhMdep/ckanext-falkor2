@@ -70,8 +70,10 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.event_handler = event_handler.EventHandler(self.falkor)
+        session = model.meta.Session
+        model.validate_falkor_config(session)
         self.__initialised = model.get_falkor_config(
-            model.meta.Session
+           session
         ).initialised
 
     @property
