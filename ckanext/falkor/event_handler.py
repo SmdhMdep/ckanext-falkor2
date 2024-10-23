@@ -34,8 +34,8 @@ class EventHandler:
             user_id: str,
             event: Optional[FalkorEvent] = None
     ):
-        session = meta.create_local_session()
         if event is None:
+            session = meta.create_local_session()
             event = insert_pending_event(
                 session,
                 event_id=generate_event_id(),
@@ -45,65 +45,88 @@ class EventHandler:
                 user_id=user_id,
                 created_at=metadata_created
             )
-        session.commit()
+            session.commit()
 
-    def handle_resource_create(self, resource: Resource, user_id: str):
-        session = meta.create_local_session()
-        insert_pending_event(
-            session,
-            event_id=generate_event_id(),
-            object_id=UUID(resource.id),
-            object_type=FalkorEventObjectType.RESOURCE,
-            event_type=FalkorEventType.CREATE,
-            user_id=user_id,
-            created_at=resource.created
-        )
-        session.commit()
+    def handle_resource_create(
+            self,
+            resource_id: str,
+            created_at: datetime,
+            user_id: str,
+            event: Optional[FalkorEvent] = None
+    ):
+        if event is None:
+            session = meta.create_local_session()
+            insert_pending_event(
+                session,
+                event_id=generate_event_id(),
+                object_id=UUID(resource_id),
+                object_type=FalkorEventObjectType.RESOURCE,
+                event_type=FalkorEventType.CREATE,
+                user_id=user_id,
+                created_at=created_at
+            )
+            session.commit()
 
     def handle_resource_read(
             self,
             resource_id: UUID,
             package_id: UUID,
             user_id: str,
-            created_at: datetime = datetime.now()
+            created_at: datetime = datetime.now(),
+            event: Optional[FalkorEvent] = None
     ):
-        session = meta.create_local_session()
-        insert_pending_event(
-            session,
-            event_id=generate_event_id(),
-            object_id=resource_id,
-            object_type=FalkorEventObjectType.RESOURCE,
-            event_type=FalkorEventType.READ,
-            user_id=user_id,
-            created_at=created_at
-        )
-        session.commit()
+        if event is None:
+            session = meta.create_local_session()
+            insert_pending_event(
+                session,
+                event_id=generate_event_id(),
+                object_id=resource_id,
+                object_type=FalkorEventObjectType.RESOURCE,
+                event_type=FalkorEventType.READ,
+                user_id=user_id,
+                created_at=created_at
+            )
+            session.commit()
 
-    def handle_resource_update(self, resource: Resource, user_id: str):
-        session = meta.create_local_session()
-        insert_pending_event(
-            session,
-            event_id=generate_event_id(),
-            object_id=UUID(resource.id),
-            object_type=FalkorEventObjectType.RESOURCE,
-            event_type=FalkorEventType.UPDATE,
-            user_id=user_id,
-            created_at=resource.created
-        )
-        session.commit()
+    def handle_resource_update(
+            self,
+            resource_id: str,
+            created_at: datetime,
+            user_id: str,
+            event: Optional[FalkorEvent] = None
+    ):
+        if event is None:
+            session = meta.create_local_session()
+            insert_pending_event(
+                session,
+                event_id=generate_event_id(),
+                object_id=UUID(resource_id),
+                object_type=FalkorEventObjectType.RESOURCE,
+                event_type=FalkorEventType.UPDATE,
+                user_id=user_id,
+                created_at=created_at
+            )
+            session.commit()
 
-    def handle_resource_delete(self, resource: Resource, user_id: str):
-        session = meta.create_local_session()
-        insert_pending_event(
-            session,
-            event_id=generate_event_id(),
-            object_id=UUID(resource.id),
-            object_type=FalkorEventObjectType.RESOURCE,
-            event_type=FalkorEventType.DELETE,
-            user_id=user_id,
-            created_at=resource.created
-        )
-        session.commit()
+    def handle_resource_delete(
+            self,
+            resource_id: str,
+            created_at: datetime,
+            user_id: str,
+            event: Optional[FalkorEvent] = None
+    ):
+        if event is None:
+            session = meta.create_local_session()
+            insert_pending_event(
+                session,
+                event_id=generate_event_id(),
+                object_id=UUID(resource_id),
+                object_type=FalkorEventObjectType.RESOURCE,
+                event_type=FalkorEventType.DELETE,
+                user_id=user_id,
+                created_at=created_at
+            )
+            session.commit()
 
 
 def handle_read_event(
@@ -132,12 +155,27 @@ def handle_modification_event(
             return
 
         handler.handle_package_create(
-            entity["id"], entity["metadata_created"], user_id)
+            package_id=entity.id,
+            metadata_created=entity.metadata_created,
+            user_id=user_id
+        )
 
     elif isinstance(entity, Resource):
         if operation == DomainObjectOperation.new:
-            handler.handle_resource_create(entity, user_id)
+            handler.handle_resource_create(
+                resource_id=entity.id,
+                created_at=entity.created,
+                user_id=user_id
+            )
         elif operation == DomainObjectOperation.changed:
-            handler.handle_resource_update(entity, user_id)
+            handler.handle_resource_update(
+                resource_id=entity.id,
+                created_at=entity.created,
+                user_id=user_id
+            )
         elif operation == DomainObjectOperation.deleted:
-            handler.handle_resource_delete(entity, user_id)
+            handler.handle_resource_delete(
+                resource_id=entity.id,
+                created_at=entity.created,
+                user_id=user_id
+            )

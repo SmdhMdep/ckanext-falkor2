@@ -8,6 +8,7 @@ import ckan.model as ckan_model
 from ckanext.falkor import client, auth, event_handler, model
 from ckan.lib import jobs
 from datetime import datetime
+from flask import request
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +91,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
             resources = model.get_resources_without_create_events(session)
             for resource in resources:
-                self.event_handler.handle_resource_create(resource, "sync_job")
+                self.event_handler.handle_resource_create(
+                    resource_id=resource.id,
+                    created_at=resource.created,
+                    user_id="sync_job"
+                )
 
             pending_events = model.get_pending_events(session)
             for event in pending_events:
@@ -99,8 +104,34 @@ class FalkorPlugin(plugins.SingletonPlugin):
                     self.event_handler.handle_package_create(
                         package_id=event.object_id,
                         metadata_created=event.created_at,
-                        user_id=event.user_id, event=event
+                        user_id=event.user_id,
+                        event=event
                     )
+                elif event.object_type == model.FalkorEventObjectType.RESOURCE:
+                    if model.FalkorEventType.CREATE:
+                        self.event_handler.handle_resource_create(
+                            resource_id=event.id,
+                            created_at=event.created_at,
+                            user_id=event.user_id
+                        )
+                    elif model.FalkorEventType.READ:
+                        self.event_handler.handle_resource_read(
+                            resource_id=event.id,
+                            created_at=event.created_at,
+                            user_id=event.user_id
+                        )
+                    elif model.FalkorEventType.UPDATE:
+                        self.event_handler.handle_resource_update(
+                            resource_id=event.id,
+                            created_at=event.created_at,
+                            user_id=event.user_id
+                        )
+                    elif model.FalkorEventType.DELETE:
+                        self.event_handler.handle_resource_delete(
+                            resource_id=event.id,
+                            created_at=event.created_at,
+                            user_id=event.user_id
+                        )
 
             job.status = model.FalkorSyncJobStatus.FINISHED
         except Exception as e:
@@ -115,6 +146,12 @@ class FalkorPlugin(plugins.SingletonPlugin):
     # IResourceController
 
     def before_show(self, resource_dict):
+        # TODO: See whether we should expand on this idea as we are currently
+        # generating a lot of reads. For now use to reduce noise of READ events
+        # during development.
+        if resource_dict["id"] not in request.url:
+            return
+
         jobs.enqueue(
             event_handler.handle_read_event,
             [
