@@ -8,7 +8,7 @@ import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
 
-from ckanext.falkor import client, auth, event_handler
+from ckanext.falkor import client, auth
 from ckanext.falkor.model import (
     FalkorEvent,
     FalkorEventType,
@@ -19,6 +19,10 @@ from ckanext.falkor.model import (
     get_packages_without_create_events,
     get_resources_without_create_events,
     insert_new_falkor_sync_job
+)
+from ckanext.falkor.event_handler import (
+    EventHandler,
+    DomainObjectOperationToFalkorEventTypeMap
 )
 
 log = logging.getLogger(__name__)
@@ -38,6 +42,7 @@ def get_user_id() -> str:
 
 class FalkorPlugin(plugins.SingletonPlugin):
     falkor: client.Client
+    event_handler: EventHandler
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
@@ -80,6 +85,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
             auth_client, tenant_id, core_api_url, admin_api_url
         )
 
+        self.event_handler = EventHandler(self.falkor)
+        self.sync()
+
     def sync(self):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         job = new_falkor_sync_job()
@@ -96,7 +104,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
                     created_at=package.metadata_created
                 )
                 jobs.enqueue(
-                    event_handler.handle_event,
+                    self.event_handler.handle,
                     [event]
                 )
 
@@ -110,14 +118,14 @@ class FalkorPlugin(plugins.SingletonPlugin):
                     created_at=resource.created
                 )
                 jobs.enqueue(
-                    event_handler.handle_event,
+                    self.event_handler.handle,
                     [event]
                 )
 
             pending_events = get_pending_events(session)
             for event in pending_events:
                 jobs.enqueue(
-                    event_handler.handle_event,
+                    self.event_handler.handle,
                     [event]
                 )
 
@@ -152,7 +160,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         jobs.enqueue(
-            event_handler.handle_event,
+            self.event_handler.handle,
             [event]
         )
 
@@ -168,7 +176,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         event = FalkorEvent(
             object_id=entity.id,
-            event_type=event_handler.DomainObjectOperationToFalkorEventTypeMap[
+            event_type=DomainObjectOperationToFalkorEventTypeMap[
                 operation
             ],
             user_id=get_user_id(),
@@ -191,7 +199,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
             return
 
         jobs.enqueue(
-            event_handler.handle_event,
+            self.event_handler.handle,
             args=[event]
         )
 

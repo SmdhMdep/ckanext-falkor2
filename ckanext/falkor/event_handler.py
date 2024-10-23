@@ -8,6 +8,7 @@ from ckanext.falkor.model import (
     FalkorEventType,
     FalkorEventStatus,
 )
+from ckanext.falkor.client import Client
 
 from ckan.model import meta
 from ckan.model.domain_object import DomainObjectOperation
@@ -21,21 +22,26 @@ DomainObjectOperationToFalkorEventTypeMap = {
 }
 
 
-def handle_event(event: FalkorEvent):
-    session: sa.orm.Session = meta.create_local_session()
-    session.add(event)
-    session.commit()
-    try:
-        event.status = FalkorEventStatus.PROCESSING
-        session.commit()
+class EventHandler:
+    falkor: Client
 
-        event.status = FalkorEventStatus.SYNCED
-        event.synced_at = datetime.now()
+    def __init__(self, falkor: Client):
+        self.falkor = falkor
+
+    def handle(self, event: FalkorEvent):
+        session: sa.orm.Session = meta.create_local_session()
+        session.add(event)
         session.commit()
-    except Exception as e:
-        log.exception(e)
-        session.rollback()
-        event.status = FalkorEventStatus.FAILED
-        session.commit()
-    finally:
-        session.close()
+        try:
+            event.status = FalkorEventStatus.PROCESSING
+            session.commit()
+
+            event.status = FalkorEventStatus.SYNCED
+            event.synced_at = datetime.now()
+            session.commit()
+        except Exception as e:
+            log.exception(e)
+            event.status = FalkorEventStatus.FAILED
+            session.commit()
+        finally:
+            session.close()
