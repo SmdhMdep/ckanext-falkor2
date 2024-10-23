@@ -7,6 +7,7 @@ from ckanext.falkor.model import (
     FalkorEvent,
     FalkorEventType,
     FalkorEventStatus,
+    FalkorEventObjectType
 )
 from ckanext.falkor.client import Client
 
@@ -35,6 +36,9 @@ class EventHandler:
         try:
             event.status = FalkorEventStatus.PROCESSING
             session.commit()
+
+            if event.object_type == FalkorEventObjectType.PACKAGE:
+                self.falkor.dataset_create(event.object_id, event.user_id)
 
             event.status = FalkorEventStatus.SYNCED
             event.synced_at = datetime.now()
