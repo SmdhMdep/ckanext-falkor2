@@ -38,9 +38,6 @@ def get_user_id() -> str:
 
 class FalkorPlugin(plugins.SingletonPlugin):
     falkor: client.Client
-    engine: sa.engine.Engine
-    event_handler: event_handler.EventHandler
-    __initialised: bool
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
@@ -82,8 +79,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
         self.falkor = client.Client(
             auth_client, tenant_id, core_api_url, admin_api_url
         )
-
-        self.event_handler = event_handler.EventHandler(self.falkor)
 
     def sync(self):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
