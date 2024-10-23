@@ -22,28 +22,46 @@ def base_headers(access_token: str, user_id: str) -> HttpHeaders:
     }
 
 
-def falkor_post(url: str, payload: dict, auth: auth.Auth, user_id: str):
+def falkor_post(
+        url: str,
+        payload: dict,
+        auth: auth.Auth,
+        user_id: str
+) -> requests.Response:
     response = requests.post(url, headers=base_headers(
         auth.access_token, user_id), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_put(url: str, payload: dict, auth: auth.Auth, user_id: str):
+def falkor_put(
+        url: str,
+        payload: dict,
+        auth: auth.Auth,
+        user_id: str
+) -> requests.Response:
     response = requests.put(url, headers=base_headers(
         auth.access_token, user_id), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_get(url: str, auth: auth.Auth, user_id: str):
+def falkor_get(
+    url: str,
+    auth: auth.Auth,
+    user_id: str
+) -> requests.Response:
     response = requests.get(url, headers=base_headers(
         auth.access_token, user_id), timeout=120)
     log.debug(response.json())
     return response
 
 
-def falkor_delete(url: str, auth: auth.Auth, user_id: str):
+def falkor_delete(
+        url: str,
+        auth: auth.Auth,
+        user_id: str
+) -> requests.Response:
     response = requests.delete(url, headers=base_headers(
         auth.access_token, user_id), timeout=120)
     log.debug(response.json())
@@ -68,7 +86,7 @@ class Client:
         self.__core_base_url = core_base_url
         self.__admin_base_url = admin_base_url
 
-    def dataset_create(self, package_id: str):
+    def dataset_create(self, package_id: str, user_id: str):
         url = self.__admin_base_url + self.__tenant_id + "/dataset"
         payload = {
             "datasetId": package_id,
@@ -81,11 +99,7 @@ class Client:
             "tokensEnabled": "false",
         }
 
-        # run async request
-        log.debug(f"Create dataset with id {package_id}")
-        # jobs.enqueue(
-        #     falkor_post, [url, payload, self.__auth, get_user_id()]
-        # )
+        return falkor_post(url, payload, self.__auth, user_id)
 
     def document_read(self, package_id: str, resource_id: str):
         url = (
