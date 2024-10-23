@@ -84,7 +84,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.event_handler = event_handler.EventHandler(self.falkor)
-        self.sync()
 
     def sync(self):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
