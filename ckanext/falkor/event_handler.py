@@ -7,7 +7,8 @@ from ckanext.falkor.model import (
     FalkorEvent,
     FalkorEventType,
     FalkorEventStatus,
-    FalkorEventObjectType
+    FalkorEventObjectType,
+    get_package_create_event_status_for_resource
 )
 from ckanext.falkor.client import Client
 
@@ -34,11 +35,19 @@ class EventHandler:
         session.add(event)
         session.commit()
         try:
-            event.status = FalkorEventStatus.PROCESSING
-            session.commit()
-
+            # TODO: Clean up nesting.
             if event.object_type == FalkorEventObjectType.PACKAGE:
+                # TODO: Is there a way to avoid setting PROCESSING in both branches?
+                event.status = FalkorEventStatus.PROCESSING
+                session.commit()
                 self.falkor.dataset_create(event.object_id, event.user_id)
+            elif event.object_type == FalkorEventObjectType.RESOURCE:
+                status = get_package_create_event_status_for_resource(
+                    session, event.object_id)
+                if status != FalkorEventStatus.SYNCED:
+                    return
+                event.status = FalkorEventStatus.PROCESSING
+                session.commit()
 
             event.status = FalkorEventStatus.SYNCED
             event.synced_at = datetime.now()

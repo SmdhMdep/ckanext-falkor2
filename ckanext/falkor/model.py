@@ -98,6 +98,23 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     ).all()
 
 
+def get_package_create_event_status_for_resource(
+        session: sa.orm.Session,
+        resource_id: UUID
+) -> FalkorEventStatus:
+    resource = session.query(Resource).filter(Resource.id == resource_id).first()
+
+    package = session.query(FalkorEvent).filter(
+        FalkorEvent.object_id == resource.package_id
+    ).filter(
+        FalkorEvent.object_type == FalkorEventObjectType.PACKAGE
+    ).filter(
+        FalkorEvent.event_type == FalkorEventType.CREATE
+    ).first()
+
+    return package.status
+
+
 class FalkorSyncJobStatus(Enum):
     RUNNING = "running"
     FINISHED = "finished"
@@ -162,4 +179,3 @@ def insert_new_falkor_sync_job(session: sa.orm.Session, job: FalkorSyncJob):
         FalkorSyncJob.is_latest == True
     ).update({FalkorSyncJob.is_latest: False})
     session.add(job)
-    session.commit()
