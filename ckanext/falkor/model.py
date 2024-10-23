@@ -20,6 +20,7 @@ class FalkorEventObjectType(Enum):
 
 class FalkorEventStatus(Enum):
     PENDING = 'pending'
+    PROCESSING = 'processing'
     FAILED = 'failed'
     SYNCED = 'synced'
 

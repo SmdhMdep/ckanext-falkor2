@@ -1,6 +1,8 @@
 import logging
 import sqlalchemy as sa
 
+from datetime import datetime
+
 from ckanext.falkor.model import (
     FalkorEvent,
     FalkorEventType,
@@ -24,7 +26,12 @@ def handle_event(event: FalkorEvent):
     session.add(event)
     session.commit()
     try:
-        pass
+        event.status = FalkorEventStatus.PROCESSING
+        session.commit()
+
+        event.status = FalkorEventStatus.SYNCED
+        event.synced_at = datetime.now()
+        session.commit()
     except Exception as e:
         log.exception(e)
         session.rollback()
