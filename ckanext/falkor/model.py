@@ -53,49 +53,6 @@ class FalkorEvent(Base):
     synced_at = sa.Column(sa.DateTime, nullable=True)
 
 
-def new_falkor_event(
-    id: UUID,
-    object_id: UUID,
-    object_type: FalkorEventObjectType,
-    event_type: FalkorEventType,
-    user_id: str,
-    created_at: sa.DateTime,
-    status: FalkorEventStatus = FalkorEventStatus.PENDING,
-    synced_at: Optional[sa.DateTime] = None
-) -> FalkorEvent:
-    return FalkorEvent(
-        id=id,
-        object_id=object_id,
-        object_type=object_type,
-        event_type=event_type,
-        user_id=user_id,
-        status=status,
-        created_at=created_at,
-        synced_at=synced_at
-    )
-
-
-def insert_pending_event(
-    session: sa.orm.Session,
-    event_id: UUID,
-    object_id: UUID,
-    object_type: FalkorEventObjectType,
-    event_type: FalkorEventType,
-    user_id: str,
-    created_at: datetime,
-):
-    session.add(
-        new_falkor_event(
-            id=event_id,
-            object_id=object_id,
-            object_type=object_type,
-            event_type=event_type,
-            user_id=user_id,
-            created_at=created_at,
-        )
-    )
-
-
 def get_pending_events(session: sa.orm.Session) -> List[FalkorEvent]:
     return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.PENDING).all()
 
@@ -196,9 +153,11 @@ def insert_new_falkor_sync_job(session: sa.orm.Session, job: FalkorSyncJob):
     ).first()
 
     if running_job is not None:
-        raise Exception(f"Falkor sync job is already running. ID: {running_job.id}")
+        raise Exception(
+            f"Falkor sync job is already running. ID: {running_job.id}")
 
     session.query(FalkorSyncJob).filter(
+        # Using "is True" doesn't seem to work here
         FalkorSyncJob.is_latest == True
     ).update({FalkorSyncJob.is_latest: False})
     session.add(job)

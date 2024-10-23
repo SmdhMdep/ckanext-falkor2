@@ -1,3 +1,6 @@
+from flask import request
+from datetime import datetime
+from ckan.lib import jobs
 import logging
 
 import sqlalchemy as sa
@@ -5,10 +8,18 @@ import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
 
-from ckanext.falkor import client, auth, event_handler, model
-from ckan.lib import jobs
-from datetime import datetime
-from flask import request
+from ckanext.falkor import client, auth, event_handler
+from ckanext.falkor.model import (
+    FalkorEvent,
+    FalkorEventType,
+    FalkorEventObjectType,
+    FalkorSyncJobStatus,
+    new_falkor_sync_job,
+    get_pending_events,
+    get_packages_without_create_events,
+    get_resources_without_create_events,
+    insert_new_falkor_sync_job
+)
 
 log = logging.getLogger(__name__)
 
@@ -77,67 +88,50 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def sync(self):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
-        job = model.new_falkor_sync_job()
+        job = new_falkor_sync_job()
         try:
-            model.insert_new_falkor_sync_job(session, job)
+            insert_new_falkor_sync_job(session, job)
 
-            packages = model.get_packages_without_create_events(session)
+            packages = get_packages_without_create_events(session)
             for package in packages:
-                self.event_handler.handle_package_create(
-                    package_id=package.id,
-                    metadata_created=package.metadata_created,
-                    user_id="sync_job"
+                event = FalkorEvent(
+                    object_id=package.id,
+                    object_type=FalkorEventObjectType.PACKAGE,
+                    event_type=FalkorEventType.CREATE,
+                    user_id="sync_job",
+                    created_at=package.metadata_created
+                )
+                jobs.enqueue(
+                    event_handler.handle_event,
+                    [event]
                 )
 
-            resources = model.get_resources_without_create_events(session)
+            resources = get_resources_without_create_events(session)
             for resource in resources:
-                self.event_handler.handle_resource_create(
-                    resource_id=resource.id,
-                    created_at=resource.created,
-                    user_id="sync_job"
+                event = FalkorEvent(
+                    object_id=resource.id,
+                    object_type=FalkorEventObjectType.RESOURCE,
+                    event_type=FalkorEventType.CREATE,
+                    user_id="sync_job",
+                    created_at=resource.created
+                )
+                jobs.enqueue(
+                    event_handler.handle_event,
+                    [event]
                 )
 
-            pending_events = model.get_pending_events(session)
+            pending_events = get_pending_events(session)
             for event in pending_events:
-                if event.object_type == model.FalkorEventObjectType.PACKAGE \
-                        and event.event_type == model.FalkorEventType.CREATE:
-                    self.event_handler.handle_package_create(
-                        package_id=event.object_id,
-                        metadata_created=event.created_at,
-                        user_id=event.user_id,
-                        event=event
-                    )
-                elif event.object_type == model.FalkorEventObjectType.RESOURCE:
-                    if model.FalkorEventType.CREATE:
-                        self.event_handler.handle_resource_create(
-                            resource_id=event.id,
-                            created_at=event.created_at,
-                            user_id=event.user_id
-                        )
-                    elif model.FalkorEventType.READ:
-                        self.event_handler.handle_resource_read(
-                            resource_id=event.id,
-                            created_at=event.created_at,
-                            user_id=event.user_id
-                        )
-                    elif model.FalkorEventType.UPDATE:
-                        self.event_handler.handle_resource_update(
-                            resource_id=event.id,
-                            created_at=event.created_at,
-                            user_id=event.user_id
-                        )
-                    elif model.FalkorEventType.DELETE:
-                        self.event_handler.handle_resource_delete(
-                            resource_id=event.id,
-                            created_at=event.created_at,
-                            user_id=event.user_id
-                        )
+                jobs.enqueue(
+                    event_handler.handle_event,
+                    [event]
+                )
 
-            job.status = model.FalkorSyncJobStatus.FINISHED
+            job.status = FalkorSyncJobStatus.FINISHED
         except Exception as e:
             log.exception(e, extra={"job_id": job.id})
             session.rollback()
-            job.status = model.FalkorSyncJobStatus.FAILED
+            job.status = FalkorSyncJobStatus.FAILED
         finally:
             job.end = datetime.now()
             session.commit()
@@ -146,19 +140,26 @@ class FalkorPlugin(plugins.SingletonPlugin):
     # IResourceController
 
     def before_show(self, resource_dict):
+        resource_id = resource_dict["id"]
+        created_at = resource_dict["created"]
+
         # TODO: See whether we should expand on this idea as we are currently
         # generating a lot of reads. For now use to reduce noise of READ events
         # during development.
-        if resource_dict["id"] not in request.url:
+        if resource_id not in request.url:
             return
 
+        event = FalkorEvent(
+            object_id=resource_id,
+            object_type=FalkorEventObjectType.RESOURCE,
+            event_type=FalkorEventType.READ,
+            user_id=get_user_id(),
+            created_at=created_at
+        )
+
         jobs.enqueue(
-            event_handler.handle_read_event,
-            [
-                self.event_handler,
-                resource_dict,
-                get_user_id()
-            ]
+            event_handler.handle_event,
+            [event]
         )
 
         self.get_helpers()
@@ -171,12 +172,33 @@ class FalkorPlugin(plugins.SingletonPlugin):
         if operation is None:
             return
 
+        event = FalkorEvent(
+            object_id=entity.id,
+            event_type=event_handler.DomainObjectOperationToFalkorEventTypeMap[
+                operation
+            ],
+            user_id=get_user_id(),
+        )
+
+        if isinstance(entity, ckan_model.Package):
+            # Currently Falkor does not track changes to packages.
+            # We only use the create event to create the dataset
+            # and ignore any further changes.
+            if event.event_type != FalkorEventType.CREATE:
+                return
+
+            event.object_type = FalkorEventObjectType.PACKAGE
+            event.created_at = entity.metadata_created
+
+        elif isinstance(entity, ckan_model.Resource):
+            event.object_type = FalkorEventObjectType.RESOURCE
+            event.created_at = entity.created
+        else:
+            return
+
         jobs.enqueue(
-            event_handler.handle_modification_event,
-            args=[
-                self.event_handler,
-                entity, operation, get_user_id()
-            ]
+            event_handler.handle_event,
+            args=[event]
         )
 
     def construct_falkor_url(self, resource):
