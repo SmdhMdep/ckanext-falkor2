@@ -76,7 +76,7 @@ class Auth:
             "password": self.__credentials.password,
             "grant_type": "password",
         }
-        response = requests.post(self.__endpoint, request)
+        response = requests.post(self.__endpoint, request, timeout=10)
         body = response.json()
         self.__set_token(body)
 
@@ -88,7 +88,7 @@ class Auth:
             "refresh_token": self.__refresh_token.token,
         }
 
-        response = requests.post(self.__endpoint, request)
+        response = requests.post(self.__endpoint, request, timeout=10)
         body = response.json()
         self.__set_token(body)
 
