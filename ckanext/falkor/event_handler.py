@@ -1,10 +1,9 @@
 import logging
 import sqlalchemy as sa
-import json
 
 from datetime import datetime
 from requests import HTTPError
-from typing import List
+from typing import List, Union
 
 from ckanext.falkor.model import (
     FalkorEvent,
@@ -15,7 +14,7 @@ from ckanext.falkor.model import (
 )
 from ckanext.falkor.client import Client
 
-from ckan.model import meta
+from ckan.model import meta, Package, Resource
 from ckan.model.domain_object import DomainObjectOperation
 
 log = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ class EventHandler:
     def __init__(self, falkor: Client):
         self.falkor = falkor
 
-    def handle(self, event: FalkorEvent):
+    def handle(self, event: FalkorEvent, entity: Union[Package, Resource]):
         session: sa.orm.Session = meta.create_local_session()
         session.add(event)
         session.commit()

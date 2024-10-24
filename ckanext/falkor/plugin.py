@@ -7,6 +7,7 @@ import sqlalchemy as sa
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
+from ckan.model.domain_object import DomainObjectOperation
 
 from ckanext.falkor import client, auth
 from ckanext.falkor.model import (
@@ -150,17 +151,20 @@ class FalkorPlugin(plugins.SingletonPlugin):
         if resource_id not in request.url:
             return
 
+        session = ckan_model.meta.create_local_session()
+        resource = session.query(ckan_model.Resource).get(resource_id)
+
         event = FalkorEvent(
             object_id=resource_id,
             object_type=FalkorEventObjectType.RESOURCE,
             event_type=FalkorEventType.READ,
             user_id=get_user_id(),
-            created_at=created_at
+            created_at=datetime.now()
         )
 
         jobs.enqueue(
             self.event_handler.handle,
-            [event]
+            [event, resource]
         )
 
         self.get_helpers()
@@ -193,13 +197,18 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         elif isinstance(entity, ckan_model.Resource):
             event.object_type = FalkorEventObjectType.RESOURCE
-            event.created_at = entity.created
+            if operation == DomainObjectOperation.new:
+                event.created_at = entity.created
+            elif operation == DomainObjectOperation.update:
+                event.created_at = entity.last_modified
+            else:
+                event.created_at = datetime.now()
         else:
             return
 
         jobs.enqueue(
             self.event_handler.handle,
-            args=[event]
+            args=[event, entity]
         )
 
     def construct_falkor_url(self, resource):
