@@ -1,7 +1,9 @@
+import logging
+import re
+
 from flask import request
 from datetime import datetime
 from ckan.lib import jobs
-import logging
 
 import sqlalchemy as sa
 import ckan.plugins as plugins
@@ -147,7 +149,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
         # TODO: See whether we should expand on this idea as we are currently
         # generating a lot of reads. For now use to reduce noise of READ events
         # during development.
-        if resource_id not in request.url:
+        valid_url_pattern = re.compile(r'^.*?/dataset/[^/]+/resource/[^/]+/?$')
+
+        log.debug(
+            f"URL: {request.url}\nMatched: {valid_url_pattern.match(request.url)}")
+        if not valid_url_pattern.match(request.url):
             return
 
         session = ckan_model.meta.create_local_session()
