@@ -55,6 +55,9 @@ class EventHandler:
                 if package_create_event.status != FalkorEventStatus.SYNCED:
                     return
 
+                event.status = FalkorEventStatus.PROCESSING
+                session.commit()
+
                 package_id = str(package_create_event.object_id)
 
                 try:
@@ -81,15 +84,11 @@ class EventHandler:
                     else:
                         raise e
 
-                event.status = FalkorEventStatus.PROCESSING
-                session.commit()
-
             event.status = FalkorEventStatus.SYNCED
             event.synced_at = datetime.now()
             session.commit()
         except Exception as e:
             log.exception(e)
-            log.debug(e.response.json())
             event.status = FalkorEventStatus.FAILED
             session.commit()
         finally:
