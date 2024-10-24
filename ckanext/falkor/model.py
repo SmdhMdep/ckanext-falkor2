@@ -100,13 +100,10 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
 
 def get_package_create_event_for_resource(
         session: sa.orm.Session,
-        resource_id: UUID
+        package_id: UUID
 ) -> FalkorEvent:
-    resource = session.query(Resource).filter(
-        Resource.id == resource_id).first()
-
     package = session.query(FalkorEvent).filter(
-        FalkorEvent.object_id == resource.package_id
+        FalkorEvent.object_id == package_id
     ).filter(
         FalkorEvent.object_type == FalkorEventObjectType.PACKAGE
     ).filter(

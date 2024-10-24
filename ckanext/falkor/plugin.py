@@ -10,6 +10,7 @@ import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
 from ckan.model.domain_object import DomainObjectOperation
+from ckan.lib.dictization import table_dictize
 
 from ckanext.falkor import client, auth
 from ckanext.falkor.model import (
@@ -149,15 +150,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
         # TODO: See whether we should expand on this idea as we are currently
         # generating a lot of reads. For now use to reduce noise of READ events
         # during development.
-        valid_url_pattern = re.compile(r'^.*?/dataset/[^/]+/resource/[^/]+/?$')
+        valid_url_pattern = re.compile(
+            r'^.*?/dataset/[^/]+/resource/(?!new)[^/]+/?$')
 
         log.debug(
-            f"URL: {request.url}\nMatched: {valid_url_pattern.match(request.url)}")
+            f"URL: {request.url}\nMatched: {bool(valid_url_pattern.match(request.url))}")
         if not valid_url_pattern.match(request.url):
             return
-
-        session = ckan_model.meta.create_local_session()
-        resource = session.query(ckan_model.Resource).get(resource_id)
 
         event = FalkorEvent(
             object_id=resource_id,
@@ -169,7 +168,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         jobs.enqueue(
             self.event_handler.handle,
-            [event, resource]
+            [event, resource_dict]
         )
 
         self.get_helpers()
@@ -211,9 +210,15 @@ class FalkorPlugin(plugins.SingletonPlugin):
         else:
             return
 
+        context = {
+            "model": ckan_model,
+            "ignore_auth": True,
+            "defer_commit": True
+        }
+
         jobs.enqueue(
             self.event_handler.handle,
-            args=[event, entity]
+            args=[event, table_dictize(entity, context)]
         )
 
     def construct_falkor_url(self, resource):

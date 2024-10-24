@@ -115,7 +115,7 @@ class Client:
         self,
         package_id: str,
         event: FalkorEvent,
-        # organisation_id: str,
+        organisation_id: str,
     ):
 
         url = (
@@ -134,7 +134,7 @@ class Client:
                 "created_at": str(event.created_at),
             }]),
             "documentMetadata": {
-                # "organisation_id": organisation_id,
+                "organisation_id": organisation_id,
                 "package_id": package_id,
                 "resource_id": str(event.object_id),
             },

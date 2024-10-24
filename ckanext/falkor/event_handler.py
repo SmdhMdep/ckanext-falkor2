@@ -16,6 +16,7 @@ from ckanext.falkor.client import Client
 
 from ckan.model import meta, Package, Resource
 from ckan.model.domain_object import DomainObjectOperation
+import ckan.plugins.toolkit as toolkit
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class EventHandler:
     def __init__(self, falkor: Client):
         self.falkor = falkor
 
-    def handle(self, event: FalkorEvent, entity: Union[Package, Resource]):
+    def handle(self, event: FalkorEvent, entity: dict):
         session: sa.orm.Session = meta.create_local_session()
         session.add(event)
         session.commit()
@@ -43,26 +44,26 @@ class EventHandler:
                 event.status = FalkorEventStatus.PROCESSING
                 session.commit()
 
-                self.falkor.dataset_create(event.object_id)
+                self.falkor.dataset_create(entity["id"])
 
             elif event.object_type == FalkorEventObjectType.RESOURCE:
+                # TODO: Would it be better to check Falkor for the existence of the dataset instead?
+                # Check Falkor for dataset, if not exists then fire create event if no create event already pending.
                 package_create_event = get_package_create_event_for_resource(
-                    session, event.object_id)
+                    session, entity["package_id"])
 
                 # TODO: Add retry here in case resource was created shortly after
                 # package and it is still processing.
-                if package_create_event.status != FalkorEventStatus.SYNCED:
+                if package_create_event is None or package_create_event.status != FalkorEventStatus.SYNCED:
                     return
 
                 event.status = FalkorEventStatus.PROCESSING
                 session.commit()
 
-                package_id = str(package_create_event.object_id)
-
                 try:
                     document_events: List[dict] = self.falkor.document_get(
-                        package_id,
-                        str(event.object_id)
+                        entity["package_id"],
+                        entity["id"]
                     )
 
                     document_events.append({
@@ -74,12 +75,20 @@ class EventHandler:
 
                     self.falkor.document_update(
                         str(event.object_id),
-                        package_id,
+                        entity["package_id"],
                         document_events
                     )
                 except HTTPError as e:
                     if e.response.status_code == 404:
-                        self.falkor.document_create(package_id, event)
+                        log.debug(entity)
+                        package_info = toolkit.get_action("package_show")(
+                            data_dict={"id": entity["package_id"]}
+                        )
+                        self.falkor.document_create(
+                            entity["package_id"],
+                            event,
+                            package_info["organization"]["id"]
+                        )
                     else:
                         raise e
 
