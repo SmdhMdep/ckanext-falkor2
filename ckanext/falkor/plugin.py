@@ -143,7 +143,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def before_show(self, resource_dict):
         resource_id = resource_dict["id"]
-        created_at = resource_dict["created"]
 
         # TODO: See whether we should expand on this idea as we are currently
         # generating a lot of reads. For now use to reduce noise of READ events
