@@ -1,8 +1,10 @@
 import logging
 import sqlalchemy as sa
+import json
 
 from datetime import datetime
 from requests import HTTPError
+from typing import List
 
 from ckanext.falkor.model import (
     FalkorEvent,
@@ -56,8 +58,23 @@ class EventHandler:
                 package_id = str(package_create_event.object_id)
 
                 try:
-                    document = self.falkor.document_get(
-                        package_id, str(event.object_id))
+                    document_events: List[dict] = self.falkor.document_get(
+                        package_id,
+                        str(event.object_id)
+                    )
+
+                    document_events.append({
+                        "id": str(event.id),
+                        "event_type": event.event_type,
+                        "user_id": event.user_id,
+                        "created_at": str(event.created_at),
+                    })
+
+                    self.falkor.document_update(
+                        str(event.object_id),
+                        package_id,
+                        document_events
+                    )
                 except HTTPError as e:
                     if e.response.status_code == 404:
                         self.falkor.document_create(package_id, event)

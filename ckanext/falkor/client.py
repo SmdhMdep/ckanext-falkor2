@@ -140,34 +140,22 @@ class Client:
             },
         }
 
-        # log.debug(f"Creating document with id {resource.id}")
         falkor_post(url, payload, self.__auth).raise_for_status()
 
-    def document_update(self, resource: model.Resource):
+    def document_update(
+            self,
+            resource_id: str,
+            package_id: str,
+            data: str
+    ):
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + resource.package_id
+            + package_id
             + "/"
-            + resource.id
+            + resource_id
             + "/body"
         )
 
-        log.debug(f"Updating document with id {resource.id}")
-        # jobs.enqueue(
-        #     falkor_put, [url, resource.as_dict(), self.__auth]
-        # )
-
-    def document_delete(self, resource: model.Resource):
-        url = (
-            self.__core_base_url
-            + self.__tenant_id
-            + "/dataset/"
-            + resource.package_id
-            + "/"
-            + resource.id
-        )
-
-        log.debug(f"Deleting document with id {resource.id}")
-        # jobs.enqueue(falkor_delete, [url, self.__auth, get_user_id()])
+        falkor_put(url, data, self.__auth).raise_for_status()
