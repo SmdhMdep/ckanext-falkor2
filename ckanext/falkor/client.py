@@ -5,6 +5,7 @@ import ckan.model as model
 
 from typing import TypedDict
 from ckanext.falkor import auth
+from ckanext.falkor.model import FalkorEvent
 
 log = logging.getLogger(__name__)
 
@@ -13,12 +14,11 @@ HttpHeaders = TypedDict(
 )
 
 
-def base_headers(access_token: str, user_id: str) -> HttpHeaders:
+def base_headers(access_token: str) -> HttpHeaders:
     return {
         "Content-Type": "application/json",
         "accept": "application/json",
         "Authorization": "Bearer " + access_token,
-        "x-user": user_id,
     }
 
 
@@ -26,10 +26,9 @@ def falkor_post(
         url: str,
         payload: dict,
         auth: auth.Auth,
-        user_id: str
 ) -> requests.Response:
     response = requests.post(url, headers=base_headers(
-        auth.access_token, user_id), json=payload, timeout=120)
+        auth.access_token), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
@@ -38,10 +37,9 @@ def falkor_put(
         url: str,
         payload: dict,
         auth: auth.Auth,
-        user_id: str
 ) -> requests.Response:
     response = requests.put(url, headers=base_headers(
-        auth.access_token, user_id), json=payload, timeout=120)
+        auth.access_token), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
@@ -49,10 +47,9 @@ def falkor_put(
 def falkor_get(
     url: str,
     auth: auth.Auth,
-    user_id: str
 ) -> requests.Response:
     response = requests.get(url, headers=base_headers(
-        auth.access_token, user_id), timeout=120)
+        auth.access_token), timeout=120)
     log.debug(response.json())
     return response
 
@@ -60,10 +57,9 @@ def falkor_get(
 def falkor_delete(
         url: str,
         auth: auth.Auth,
-        user_id: str
 ) -> requests.Response:
     response = requests.delete(url, headers=base_headers(
-        auth.access_token, user_id), timeout=120)
+        auth.access_token), timeout=120)
     log.debug(response.json())
     return response
 
@@ -86,22 +82,21 @@ class Client:
         self.__core_base_url = core_base_url
         self.__admin_base_url = admin_base_url
 
-    def dataset_create(self, package_id: str, user_id: str):
+    def dataset_create(self, package_id: str):
         url = self.__admin_base_url + self.__tenant_id + "/dataset"
         payload = {
             "datasetId": package_id,
             "encryptionType": "none",
             "externalStorage": "false",
             "permissionEnabled": "false",
-            "taggingEnabled": "true",
-            "linkedContract": "none",
+            "taggingEnabled": "false",
             "iotaEnabled": "false",
             "tokensEnabled": "false",
         }
 
-        return falkor_post(url, payload, self.__auth, user_id)
+        falkor_post(url, payload, self.__auth).raise_for_status()
 
-    def document_read(self, package_id: str, resource_id: str):
+    def document_get(self, package_id: str, resource_id: str):
         url = (
             self.__core_base_url
             + self.__tenant_id
@@ -112,36 +107,41 @@ class Client:
             + "/body"
         )
 
-        log.debug(f"Read for document with id {resource_id}")
-        # jobs.enqueue(falkor_get, [url, self.__auth, get_user_id()])
+        resp = falkor_get(url, self.__auth)
+        resp.raise_for_status()
+        return resp.json()
 
     def document_create(
         self,
-        resource: model.Resource,
-        organisation_id: str,
+        package_id: str,
+        event: FalkorEvent,
+        # organisation_id: str,
     ):
 
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + resource.package_id
+            + package_id
             + "/create"
         )
         payload = {
-            "documentId": resource.id,
-            "data": json.dumps(resource.as_dict()),
-            "tags": {
-                "organisation_id": organisation_id,
-                "package_id": resource.package_id,
-                "resource_id": resource.id,
+            "documentId": str(event.object_id),
+            "data": json.dumps([{
+                "id": str(event.id),
+                "event_type": event.event_type,
+                "user_id": event.user_id,
+                "created_at": str(event.created_at),
+            }]),
+            "documentMetadata": {
+                # "organisation_id": organisation_id,
+                "package_id": package_id,
+                "resource_id": str(event.object_id),
             },
         }
 
-        log.debug(f"Creating document with id {resource.id}")
-        # jobs.enqueue(
-        #     falkor_post, [url, payload, self.__auth, get_user_id()]
-        # )
+        # log.debug(f"Creating document with id {resource.id}")
+        falkor_post(url, payload, self.__auth).raise_for_status()
 
     def document_update(self, resource: model.Resource):
         url = (
@@ -156,7 +156,7 @@ class Client:
 
         log.debug(f"Updating document with id {resource.id}")
         # jobs.enqueue(
-        #     falkor_put, [url, resource.as_dict(), self.__auth, get_user_id()]
+        #     falkor_put, [url, resource.as_dict(), self.__auth]
         # )
 
     def document_delete(self, resource: model.Resource):

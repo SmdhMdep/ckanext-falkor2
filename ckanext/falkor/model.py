@@ -13,19 +13,19 @@ Base = declarative_base(metadata=meta.metadata)
 log = logging.getLogger(__name__)
 
 
-class FalkorEventObjectType(Enum):
+class FalkorEventObjectType(str, Enum):
     PACKAGE = 'package'
     RESOURCE = 'resource'
 
 
-class FalkorEventStatus(Enum):
+class FalkorEventStatus(str, Enum):
     PENDING = 'pending'
     PROCESSING = 'processing'
     FAILED = 'failed'
     SYNCED = 'synced'
 
 
-class FalkorEventType(Enum):
+class FalkorEventType(str, Enum):
     CREATE = "create"
     READ = "read"
     UPDATE = "update"
@@ -98,11 +98,12 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     ).all()
 
 
-def get_package_create_event_status_for_resource(
+def get_package_create_event_for_resource(
         session: sa.orm.Session,
         resource_id: UUID
-) -> FalkorEventStatus:
-    resource = session.query(Resource).filter(Resource.id == resource_id).first()
+) -> FalkorEvent:
+    resource = session.query(Resource).filter(
+        Resource.id == resource_id).first()
 
     package = session.query(FalkorEvent).filter(
         FalkorEvent.object_id == resource.package_id
@@ -112,7 +113,7 @@ def get_package_create_event_status_for_resource(
         FalkorEvent.event_type == FalkorEventType.CREATE
     ).first()
 
-    return package.status
+    return package
 
 
 class FalkorSyncJobStatus(Enum):
