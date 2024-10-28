@@ -69,7 +69,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         toolkit.add_public_directory(config, "public")
 
         toolkit.add_ckan_admin_tab(
-            config, "falkor_blueprint.falkor_audit", "Falkor", icon="gavel")
+            config, "falkor_blueprint.admin_tab", "Falkor", icon="gavel")
 
     def configure(self, config):
         # TODO: Check if plugins has been initialised before tracking events

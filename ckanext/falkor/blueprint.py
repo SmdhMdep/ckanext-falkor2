@@ -5,12 +5,12 @@ render = base.render
 falkor_blueprint = Blueprint(u'falkor_blueprint', __name__)
 
 
-def falkor_audit():
+def admin_tab():
     return render(
-        "falkor-audit.html",
+        "admin/base.html",
     )
 
 
 falkor_blueprint.add_url_rule(
-    u'/ckan-admin/falkor-audit', view_func=falkor_audit
+    u'/ckan-admin/falkor', view_func=admin_tab
 )
