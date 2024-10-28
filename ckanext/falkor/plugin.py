@@ -1,7 +1,7 @@
 import logging
 import re
 
-from flask import request
+from flask import request, Blueprint
 from datetime import datetime
 from ckan.lib import jobs
 
@@ -9,6 +9,7 @@ import sqlalchemy as sa
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
+import ckan.lib.base as base
 from ckan.model.domain_object import DomainObjectOperation
 from ckan.lib.dictization import table_dictize
 
@@ -29,7 +30,8 @@ from ckanext.falkor.event_handler import (
     EventHandler,
     DomainObjectOperationToFalkorEventTypeMap
 )
-from ckanext.falkor.blueprint import falkor_blueprint
+
+render = base.render
 
 CONTEXT = {
     "model": ckan_model,
@@ -55,6 +57,7 @@ def get_user_id() -> str:
 class FalkorPlugin(plugins.SingletonPlugin):
     falkor: client.Client
     event_handler: EventHandler
+    blueprint: Blueprint
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
@@ -69,7 +72,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         toolkit.add_public_directory(config, "public")
 
         toolkit.add_ckan_admin_tab(
-            config, "falkor_blueprint.admin_tab", "Falkor", icon="gavel")
+            config, "falkor_admin.admin_tab", "Falkor", icon="gavel")
 
     def configure(self, config):
         # TODO: Check if plugins has been initialised before tracking events
@@ -102,11 +105,28 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.event_handler = EventHandler(self.falkor)
+        self.blueprint = Blueprint(u'falkor_admin', __name__)
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor",
+            view_func=self.admin_tab,
+            methods=["GET"]
+        )
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor/sync",
+            view_func=self.sync,
+            methods=["POST"]
+        )
 
     def get_blueprint(self):
-        return falkor_blueprint
+        return self.blueprint
+
+    def admin_tab(self):
+        return render(
+            "admin/base.html",
+        )
 
     def sync(self):
+        # TODO: Verify user is sys admin
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         job = new_falkor_sync_job()
         try:
@@ -154,14 +174,18 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 )
 
             job.status = FalkorSyncJobStatus.FINISHED
+            toolkit.h.flash_success("Sync job started")
         except Exception as e:
             log.exception(e, extra={"job_id": job.id})
             session.rollback()
             job.status = FalkorSyncJobStatus.FAILED
+            toolkit.h.flash_error("There was an error starting the sync job")
         finally:
             job.end = datetime.now()
             session.commit()
             session.close()
+
+        return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
     # IResourceController
 
