@@ -29,6 +29,7 @@ from ckanext.falkor.event_handler import (
     EventHandler,
     DomainObjectOperationToFalkorEventTypeMap
 )
+from ckanext.falkor.blueprint import falkor_blueprint
 
 CONTEXT = {
     "model": ckan_model,
@@ -57,6 +58,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IConfigurable, inherit=True)
+    plugins.implements(plugins.IBlueprint)
     plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
@@ -65,6 +67,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
     def update_config(self, config):
         toolkit.add_template_directory(config, "templates")
         toolkit.add_public_directory(config, "public")
+
+        toolkit.add_ckan_admin_tab(
+            config, "falkor_blueprint.falkor_audit", "Falkor", icon="gavel")
 
     def configure(self, config):
         # TODO: Check if plugins has been initialised before tracking events
@@ -97,7 +102,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.event_handler = EventHandler(self.falkor)
-        self.sync()
+
+    def get_blueprint(self):
+        return falkor_blueprint
 
     def sync(self):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
