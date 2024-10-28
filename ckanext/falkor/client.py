@@ -1,7 +1,6 @@
 import requests
 import logging
 import json
-import ckan.model as model
 
 from typing import TypedDict
 from ckanext.falkor import auth

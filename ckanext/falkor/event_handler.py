@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 from datetime import datetime
 from requests import HTTPError
-from typing import List, Union
+from typing import List
 
 from ckanext.falkor.model import (
     FalkorEvent,
@@ -14,7 +14,7 @@ from ckanext.falkor.model import (
 )
 from ckanext.falkor.client import Client
 
-from ckan.model import meta, Package, Resource
+from ckan.model import meta, Resource
 from ckan.model.domain_object import DomainObjectOperation
 import ckan.plugins.toolkit as toolkit
 

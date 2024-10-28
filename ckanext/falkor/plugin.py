@@ -22,12 +22,19 @@ from ckanext.falkor.model import (
     get_pending_events,
     get_packages_without_create_events,
     get_resources_without_create_events,
-    insert_new_falkor_sync_job
+    insert_new_falkor_sync_job,
+    get_dictized_entity
 )
 from ckanext.falkor.event_handler import (
     EventHandler,
     DomainObjectOperationToFalkorEventTypeMap
 )
+
+CONTEXT = {
+    "model": ckan_model,
+    "ignore_auth": True,
+    "defer_commit": True
+}
 
 log = logging.getLogger(__name__)
 
@@ -90,6 +97,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.event_handler = EventHandler(self.falkor)
+        self.sync()
 
     def sync(self):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
@@ -108,7 +116,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 )
                 jobs.enqueue(
                     self.event_handler.handle,
-                    [event]
+                    [event, table_dictize(package, CONTEXT)]
                 )
 
             resources = get_resources_without_create_events(session)
@@ -122,14 +130,20 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 )
                 jobs.enqueue(
                     self.event_handler.handle,
-                    [event]
+                    [event, table_dictize(resource, CONTEXT)]
                 )
 
             pending_events = get_pending_events(session)
             for event in pending_events:
+                entity = get_dictized_entity(
+                    session,
+                    CONTEXT,
+                    str(event.object_id),
+                    event.object_type
+                )
                 jobs.enqueue(
                     self.event_handler.handle,
-                    [event]
+                    [event, entity]
                 )
 
             job.status = FalkorSyncJobStatus.FINISHED
@@ -210,15 +224,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
         else:
             return
 
-        context = {
-            "model": ckan_model,
-            "ignore_auth": True,
-            "defer_commit": True
-        }
-
         jobs.enqueue(
             self.event_handler.handle,
-            args=[event, table_dictize(entity, context)]
+            args=[event, table_dictize(entity, CONTEXT)]
         )
 
     def construct_falkor_url(self, resource):

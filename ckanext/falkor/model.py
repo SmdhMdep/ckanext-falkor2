@@ -4,9 +4,10 @@ import sqlalchemy as sa
 from enum import Enum
 from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Union
 from sqlalchemy.ext.declarative import declarative_base
 from ckan.model import meta, Package, Resource
+from ckan.lib.dictization import table_dictize
 
 Base = declarative_base(metadata=meta.metadata)
 
@@ -96,6 +97,22 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     ).filter(
         sa.cast(distinct_resource_creates.c.object_id, sa.TEXT) == None
     ).all()
+
+
+def get_dictized_entity(
+        session: sa.orm.Session,
+        context: dict, id: str,
+        object_type: FalkorEventObjectType
+) -> dict:
+    ckan_model_type: Union[Package, Resource]
+    if object_type == FalkorEventObjectType.RESOURCE:
+        ckan_model_type = Resource
+    elif object_type == FalkorEventObjectType.PACKAGE:
+        ckan_model_type = Package
+    else:
+        raise Exception("Invalid object type for retrieving dictized object")
+
+    return table_dictize(session.query(ckan_model_type).get(id), context)
 
 
 def get_package_create_event_for_resource(
