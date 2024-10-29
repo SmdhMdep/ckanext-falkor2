@@ -130,6 +130,12 @@ def get_package_create_event_for_resource(
     return package
 
 
+def get_failed_events(
+    session: sa.orm.Session,
+) -> List[FalkorEvent]:
+    return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.FAILED).all()
+
+
 class FalkorSyncJobStatus(Enum):
     RUNNING = "running"
     FINISHED = "finished"
@@ -194,3 +200,10 @@ def insert_new_falkor_sync_job(session: sa.orm.Session, job: FalkorSyncJob):
         FalkorSyncJob.is_latest == True
     ).update({FalkorSyncJob.is_latest: False})
     session.add(job)
+
+
+def get_sync_job_history(session: sa.orm.Session, limit: Optional[int] = None) -> List[FalkorSyncJob]:
+    query = session.query(FalkorSyncJob).order_by(FalkorSyncJob.start.desc())
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()

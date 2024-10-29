@@ -1,14 +1,83 @@
 {% ckan_extends %}
 
 {% block primary_content_inner %}
-  {% import 'macros/form.html' as form %}
+{% import 'macros/form.html' as form %}
+<p>{{ _('Last sync job run: ' + h.render_datetime(latest_job_run, with_hours=True, with_seconds=True)) }}</p>
 <form method="POST" action="{{ h.url_for("falkor_admin.sync") }}" id="form-falkor-sync">
-    <div class="form-actions">
       <button
-        class="btn btn-primary"
-        type="submit">
+        class="btn btn-primary btn-block"
+        type="submit"
+        title="{{ _('Run a sync job to push any pending events to Falkor.') }}"
+      >
         {{ _('Sync') }}
       </button>
+</form>
+<h3>{{ _('Most recent runs') }}</h3>
+<table class="table table-responsive">
+  <thead>
+    <tr>
+      <th scope="col">Job ID</th>
+      <th scope="col">Status</th>
+      <th scope="col">Started</th>
+      <th scope="col">Finished</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sync_job in sync_jobs %}
+      <tr>
+        <td>{{ sync_job.id }}</td>
+        <td class="{{ 'bg-danger' if sync_job.status.value == "failed" }}">{{ sync_job.status.value }}</td>
+        <td>{{ h.render_datetime(sync_job.start, with_hours=True, with_seconds=True) or _('Never') }}</td>
+        <td>{{ h.render_datetime(sync_job.end, with_hours=True, with_seconds=True) or _('Never') }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<h3>Failed events</h3>
+<table class="table table-responsive">
+  <thead>
+    <tr>
+      <th scope="col">Event ID</th>
+      <th scope="col">Object ID</th>
+      <th scope="col">Object Type</th>
+      <th scope="col">Event Type</th>
+      <th scope="col">User ID</th>
+      <th scope="col">Created At</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for event in failed_events %}
+      <tr>
+        <td>{{ event.id }}</td>
+        <td>{{ event.object_id }}</td>
+        <td>{{ event.object_type.value }}</td>
+        <td>{{ event.event_type.value }}</td>
+        <td>{{ event.user_id }}</td>
+        <td>{{ h.render_datetime(event.created_at, with_hours=True, with_seconds=True) }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+
+{% block secondary_content %}
+  <div class="module module-narrow module-shallow">
+    <h2 class="module-heading">
+      <i class="fa fa-info-circle"></i>
+      {{ _('Falkor Admin') }}
+    </h2>
+    <div class="module-content">
+      {% block admin_form_help %}
+        {% trans %}
+          <p>This page can be used to:</p>
+          <ul>
+            <li>Manually run sync jobs</li>
+            <li>View recent sync job runs</li>
+            <li>View failed events</li>
+          </ul>
+        {% endtrans %}
+    {% endblock %}
     </div>
-  </form>
+  </div>
 {% endblock %}
