@@ -133,7 +133,7 @@ def get_package_create_event_for_resource(
 def get_failed_events(
     session: sa.orm.Session,
 ) -> List[FalkorEvent]:
-    return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.FAILED).all()
+    return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.FAILED).order_by(FalkorEvent.created_at.desc()).all()
 
 
 class FalkorSyncJobStatus(Enum):
