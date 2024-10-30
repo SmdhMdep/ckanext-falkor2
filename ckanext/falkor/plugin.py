@@ -131,7 +131,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         return render(
             "admin/base.html",
             extra_vars={
-                "latest_job_run": sync_jobs[0].start,
+                "latest_job_run": sync_jobs[0].start if len(sync_jobs) else None,
                 "sync_jobs": sync_jobs,
                 "failed_events": failed_events
             }
@@ -210,10 +210,10 @@ class FalkorPlugin(plugins.SingletonPlugin):
         valid_url_pattern = re.compile(
             r'^.*?/dataset/[^/]+/resource/(?!new)[^/]+/?$')
 
-        log.debug(
-            f"URL: {request.url}\nMatched: {bool(valid_url_pattern.match(request.url))}")
         if not valid_url_pattern.match(request.url):
             return
+
+        log.debug(resource_dict)
 
         event = FalkorEvent(
             object_id=resource_id,
@@ -274,24 +274,12 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def construct_falkor_url(self, resource):
         resource_id = resource["id"]
-        resource_name = resource["name"]
-
         package_id = resource["package_id"]
-
         package_info = toolkit.get_action(
             "package_show")(data_dict={"id": package_id})
-        package_name = package_info["name"]
+        org_id = package_info["organization"]["id"]
 
-        organisation_info = package_info["organization"]
-        organisation_name = organisation_info["title"]
-
-        url = f"{self.audit_base_url}{package_id}/{resource_id}"
-        query = (
-            f"?dataset_name={package_name}"
-            f"&org_name={organisation_name}"
-            f"&doc_name={resource_name}"
-        )
-        return url + query
+        return f"{self.audit_base_url}{org_id}/{package_id}/{resource_id}"
 
     def get_helpers(self):
         return {"construct_falkor_url": self.construct_falkor_url}

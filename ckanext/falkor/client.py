@@ -112,16 +112,15 @@ class Client:
 
     def document_create(
         self,
-        package_id: str,
         event: FalkorEvent,
-        organisation_id: str,
+        metadata: dict,
     ):
 
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + package_id
+            + metadata["package_id"]
             + "/create"
         )
         payload = {
@@ -130,13 +129,9 @@ class Client:
                 "id": str(event.id),
                 "event_type": event.event_type,
                 "user_id": event.user_id,
-                "created_at": str(event.created_at),
+                "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             }]),
-            "documentMetadata": {
-                "organisation_id": organisation_id,
-                "package_id": package_id,
-                "resource_id": str(event.object_id),
-            },
+            "documentMetadata": metadata,
         }
 
         falkor_post(url, payload, self.__auth).raise_for_status()

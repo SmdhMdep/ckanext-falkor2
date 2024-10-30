@@ -14,7 +14,7 @@ from ckanext.falkor.model import (
 )
 from ckanext.falkor.client import Client
 
-from ckan.model import meta, Resource
+from ckan.model import meta
 from ckan.model.domain_object import DomainObjectOperation
 import ckan.plugins.toolkit as toolkit
 
@@ -70,7 +70,7 @@ class EventHandler:
                         "id": str(event.id),
                         "event_type": event.event_type,
                         "user_id": event.user_id,
-                        "created_at": str(event.created_at),
+                        "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
                     })
 
                     self.falkor.document_update(
@@ -85,9 +85,15 @@ class EventHandler:
                             data_dict={"id": entity["package_id"]}
                         )
                         self.falkor.document_create(
-                            entity["package_id"],
                             event,
-                            package_info["organization"]["id"]
+                            {
+                                "org_id": package_info["organization"]["id"],
+                                "org_name": package_info["organization"]["title"],
+                                "package_id": entity["package_id"],
+                                "package_name": package_info["name"],
+                                "resource_id": str(event.object_id),
+                                "resource_name": entity["name"]
+                            }
                         )
                     else:
                         raise e
