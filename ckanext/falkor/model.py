@@ -171,10 +171,10 @@ class FalkorSyncJob(Base):
 
 
 def new_falkor_sync_job(
-    id: UUID = uuid4(),
+    id: UUID,
+    start: datetime,
     status: FalkorSyncJobStatus = FalkorSyncJobStatus.RUNNING,
     is_latest: bool = True,
-    start: datetime = datetime.now(),
     end: Optional[datetime] = None
 ) -> FalkorSyncJob:
     return FalkorSyncJob(

@@ -32,6 +32,7 @@ from ckanext.falkor.event_handler import (
     EventHandler,
     DomainObjectOperationToFalkorEventTypeMap
 )
+from uuid import uuid4
 
 render = base.render
 
@@ -138,9 +139,18 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
     def sync(self):
-        # TODO: Verify user is sys admin
+        if toolkit.g.userobj is None:
+            logging.warning("Sync attempted by unauthorised user")
+            toolkit.h.flash_error("There was an error starting the sync job")
+            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
+        elif not toolkit.g.userobj.sysadmin:
+            logging.warning(
+                f"Sync attempted by non sysadmin user {toolkit.g.userobj.id}")
+            toolkit.h.flash_error("There was an error starting the sync job")
+            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
+
         session: sa.orm.Session = ckan_model.meta.create_local_session()
-        job = new_falkor_sync_job()
+        job = new_falkor_sync_job(id=uuid4(), start=datetime.now())
         try:
             insert_new_falkor_sync_job(session, job)
 
