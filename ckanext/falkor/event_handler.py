@@ -38,22 +38,16 @@ class EventHandler:
         session.add(event)
         session.commit()
         try:
-            # TODO: Clean up nesting.
             if event.object_type == FalkorEventObjectType.PACKAGE:
-                # TODO: Is there a way to avoid setting PROCESSING in both branches?
                 event.status = FalkorEventStatus.PROCESSING
                 session.commit()
 
                 self.falkor.dataset_create(entity["id"])
 
             elif event.object_type == FalkorEventObjectType.RESOURCE:
-                # TODO: Would it be better to check Falkor for the existence of the dataset instead?
-                # Check Falkor for dataset, if not exists then fire create event if no create event already pending.
                 package_create_event = get_package_create_event_for_resource(
                     session, entity["package_id"])
 
-                # TODO: Add retry here in case resource was created shortly after
-                # package and it is still processing.
                 if package_create_event is None or package_create_event.status != FalkorEventStatus.SYNCED:
                     return
 
@@ -66,12 +60,22 @@ class EventHandler:
                         entity["id"]
                     )
 
-                    document_events.append({
+                    document_event = {
                         "id": str(event.id),
                         "event_type": event.event_type,
                         "user_id": event.user_id,
                         "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                    })
+                    }
+
+                    if document_event in document_events:
+                        log.warning(
+                            f"[Event ID: {event.id}] Already synced to Falkor")
+                        event.status = FalkorEventStatus.SYNCED
+                        event.synced_at = datetime.now()
+                        session.commit()
+                        return
+
+                    document_events.append(document_event)
 
                     self.falkor.document_update(
                         str(event.object_id),
@@ -102,7 +106,8 @@ class EventHandler:
             event.synced_at = datetime.now()
             session.commit()
         except Exception as e:
-            log.exception(f"[Event ID: {event.id}] {e}")
+            log.exception(
+                f"[Event ID: {event.id}] {e}")
             event.status = FalkorEventStatus.FAILED
             session.commit()
         finally:
