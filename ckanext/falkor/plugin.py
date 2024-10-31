@@ -150,7 +150,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
             return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
         session: sa.orm.Session = ckan_model.meta.create_local_session()
-        job = new_falkor_sync_job(id=uuid4(), start=datetime.now())
+        job_id = uuid4()
+        job = new_falkor_sync_job(job_id, start=datetime.now())
         try:
             insert_new_falkor_sync_job(session, job)
 
@@ -198,7 +199,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
             job.status = FalkorSyncJobStatus.FINISHED
             toolkit.h.flash_success("Sync job started")
         except Exception as e:
-            log.exception(e, extra={"job_id": job.id})
+            log.exception(f"[Job Id: {job_id}] {e}")
             session.rollback()
             job.status = FalkorSyncJobStatus.FAILED
             toolkit.h.flash_error("There was an error starting the sync job")
