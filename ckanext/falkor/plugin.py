@@ -20,6 +20,7 @@ from ckanext.falkor.model import (
     FalkorEventObjectType,
     FalkorSyncJobStatus,
     new_falkor_sync_job,
+    get_event,
     get_pending_events,
     get_packages_without_create_events,
     get_resources_without_create_events,
@@ -120,6 +121,18 @@ class FalkorPlugin(plugins.SingletonPlugin):
             methods=["POST"]
         )
 
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor/reprocess",
+            view_func=self.reprocess_all,
+            methods=["POST"]
+        )
+
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor/reprocess/<event_id>",
+            view_func=self.reprocess,
+            methods=["POST"]
+        )
+
     def get_blueprint(self):
         return self.blueprint
 
@@ -208,6 +221,43 @@ class FalkorPlugin(plugins.SingletonPlugin):
             session.commit()
             session.close()
 
+        return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
+
+    def reprocess_all(self):
+        log.debug("Reprocessing all failed events")
+        session: sa.orm.Session = ckan_model.meta.create_local_session()
+        failed_events = get_failed_events(session)
+        session.close()
+
+        for event in failed_events:
+            entity = get_dictized_entity(
+                session,
+                CONTEXT,
+                str(event.object_id),
+                event.object_type
+            )
+            jobs.enqueue(
+                self.event_handler.handle,
+                [event, entity]
+            )
+
+        return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
+
+    def reprocess(self, event_id: str):
+        log.debug(f"Reprocessing {event_id}")
+        session: sa.orm.Session = ckan_model.meta.create_local_session()
+        event = get_event(session, event_id)
+        entity = get_dictized_entity(
+            session,
+            CONTEXT,
+            str(event.object_id),
+            event.object_type
+        )
+        session.close()
+        jobs.enqueue(
+            self.event_handler.handle,
+            [event, entity]
+        )
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
     # IResourceController

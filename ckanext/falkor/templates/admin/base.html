@@ -14,7 +14,56 @@
         {{ _('Sync') }}
       </button>
 </form>
-<h3>{{ _('Most recent runs') }}</h3>
+<h3>Failed events</h3>
+<table class="table table-responsive">
+  <thead>
+    <tr>
+      <th scope="col">Event ID</th>
+      <th scope="col">Object ID</th>
+      <th scope="col">Object Type</th>
+      <th scope="col">Event Type</th>
+      <th scope="col">User ID</th>
+      <th scope="col">Created At</th>
+      <th scope="col">
+        {% if failed_events | length > 0 %}
+          <form method="POST" action="{{ h.url_for("falkor_admin.reprocess_all") }}" id="form-reprocess-all">
+                <button
+                  class="btn btn-sm btn-warning"
+                  type="submit"
+                  title="{{ _('Reprocess all failed events') }}"
+                >
+                  {{ _('Reprocess All') }}
+                </button>
+          </form>
+        {% endif %}
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for event in failed_events %}
+      <tr>
+        <td>{{ event.id }}</td>
+        <td>{{ event.object_id }}</td>
+        <td>{{ event.object_type.value }}</td>
+        <td>{{ event.event_type.value }}</td>
+        <td>{{ event.user_id }}</td>
+        <td>{{ h.render_datetime(event.created_at, with_hours=True, with_seconds=True) }}</td>
+        <td>
+          <form method="POST" action="{{ h.url_for("falkor_admin.reprocess", event_id=event.id) }}">
+                <button
+                  class="btn btn-sm btn-warning"
+                  type="submit"
+                  title="{{ _('Reprocess failed event') }}"
+                >
+                  {{ _('Reprocess') }}
+                </button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<h3>Most recent runs</h3>
 <table class="table table-responsive">
   <thead>
     <tr>
@@ -31,31 +80,6 @@
         <td class="{{ 'bg-danger' if sync_job.status.value == "failed" }}">{{ sync_job.status.value }}</td>
         <td>{{ h.render_datetime(sync_job.start, with_hours=True, with_seconds=True) or _('Never') }}</td>
         <td>{{ h.render_datetime(sync_job.end, with_hours=True, with_seconds=True) or _('Never') }}</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-<h3>Failed events</h3>
-<table class="table table-responsive">
-  <thead>
-    <tr>
-      <th scope="col">Event ID</th>
-      <th scope="col">Object ID</th>
-      <th scope="col">Object Type</th>
-      <th scope="col">Event Type</th>
-      <th scope="col">User ID</th>
-      <th scope="col">Created At</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for event in failed_events %}
-      <tr>
-        <td>{{ event.id }}</td>
-        <td>{{ event.object_id }}</td>
-        <td>{{ event.object_type.value }}</td>
-        <td>{{ event.event_type.value }}</td>
-        <td>{{ event.user_id }}</td>
-        <td>{{ h.render_datetime(event.created_at, with_hours=True, with_seconds=True) }}</td>
       </tr>
     {% endfor %}
   </tbody>
