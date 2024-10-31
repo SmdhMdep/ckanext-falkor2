@@ -102,7 +102,7 @@ class EventHandler:
             event.synced_at = datetime.now()
             session.commit()
         except Exception as e:
-            log.exception(e)
+            log.exception(f"[Event ID: {event.id}] {e}")
             event.status = FalkorEventStatus.FAILED
             session.commit()
         finally:

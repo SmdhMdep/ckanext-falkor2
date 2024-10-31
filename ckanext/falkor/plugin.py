@@ -199,7 +199,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
             job.status = FalkorSyncJobStatus.FINISHED
             toolkit.h.flash_success("Sync job started")
         except Exception as e:
-            log.exception(f"[Job Id: {job_id}] {e}")
+            log.exception(f"[Job ID: {job_id}] {e}")
             session.rollback()
             job.status = FalkorSyncJobStatus.FAILED
             toolkit.h.flash_error("There was an error starting the sync job")
