@@ -265,13 +265,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
     def before_show(self, resource_dict):
         resource_id = resource_dict["id"]
 
-        # TODO: See whether we should expand on this idea as we are currently
-        # generating a lot of reads. For now use to reduce noise of READ events
-        # during development.
+        # This regex pattern will only match /dataset/<dataset_id>/resource/<resource_id>
         valid_url_pattern = re.compile(
             r'^.*?/dataset/[^/]+/resource/(?!new)[^/]+/?$')
 
-        if not valid_url_pattern.match(request.url):
+        if not valid_url_pattern.match(request.url) or resource_id not in request.url:
             return
 
         log.debug(resource_dict)
