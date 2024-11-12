@@ -58,6 +58,15 @@ def get_user_id() -> str:
     return "guest" if not user else user.id
 
 
+def check_access():
+    context = {"model": ckan_model,
+               "user": toolkit.g.user, "auth_user_obj": toolkit.g.userobj}
+    try:
+        toolkit.check_access('sysadmin', context, {})
+    except toolkit.NotAuthorized:
+        toolkit.abort(403, "Need to be system administrator to administer")
+
+
 class FalkorPlugin(plugins.SingletonPlugin):
     falkor: client.Client
     event_handler: EventHandler
@@ -137,6 +146,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         return self.blueprint
 
     def admin_tab(self):
+        check_access()
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         recent_job_limit = 10
         sync_jobs = get_sync_job_history(session, recent_job_limit)
@@ -152,14 +162,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
     def sync(self):
-        if toolkit.g.userobj is None:
-            logging.warning("Sync attempted by unauthorised user")
-            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
-        elif not toolkit.g.userobj.sysadmin:
-            logging.warning(
-                f"Sync attempted by non sysadmin user {toolkit.g.userobj.id}")
-            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
-
+        check_access()
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         job_id = uuid4()
         job = new_falkor_sync_job(job_id, start=datetime.now())
@@ -222,14 +225,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
     def reprocess_all(self):
-        if toolkit.g.userobj is None:
-            logging.warning("Batch reprocess attempted by unauthorised user")
-            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
-        elif not toolkit.g.userobj.sysadmin:
-            logging.warning(
-                f"Batch reprocess attempted by non sysadmin user {toolkit.g.userobj.id}")
-            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
-
+        check_access()
         log.debug("Reprocessing all failed events")
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         failed_events = get_failed_events(session)
@@ -250,15 +246,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
     def reprocess(self, event_id: str):
-        if toolkit.g.userobj is None:
-            logging.warning(
-                f"Reprocessing of event {event_id} attempted by unauthorised user")
-            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
-        elif not toolkit.g.userobj.sysadmin:
-            logging.warning(
-                f"Reprocessing of event {event_id} attempted by non sysadmin user {toolkit.g.userobj.id}")
-            return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
-
+        check_access()
         log.debug(f"Reprocessing {event_id}")
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         event = get_event(session, event_id)
