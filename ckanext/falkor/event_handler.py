@@ -2,20 +2,18 @@ import logging
 import sqlalchemy as sa
 
 from datetime import datetime
-from requests import HTTPError
 from typing import List
 
 from ckanext.falkor.model import (
     FalkorEvent,
     FalkorEventType,
     FalkorEventStatus,
-    get_package_create_event_for_resource
+    FalkorEventResourceType,
 )
 from ckanext.falkor.client import Client
 
 from ckan.model import meta
 from ckan.model.domain_object import DomainObjectOperation
-import ckan.plugins.toolkit as toolkit
 
 log = logging.getLogger(__name__)
 
@@ -37,69 +35,63 @@ class EventHandler:
         session.add(event)
         session.commit()
         try:
-            if event.object_type == FalkorEventObjectType.PACKAGE:
-                event.status = FalkorEventStatus.PROCESSING
-                session.commit()
 
-                self.falkor.dataset_create(entity["id"])
+            event.status = FalkorEventStatus.PROCESSING
+            session.commit()
+            if not self.falkor.dataset_exists(event.package_id):
+                self.falkor.dataset_create(event.package_id)
 
-            elif event.object_type == FalkorEventObjectType.RESOURCE:
-                package_create_event = get_package_create_event_for_resource(
-                    session, entity["package_id"])
+            document_event = {
+                "id": str(event.id),
+                "event_type": event.event_type,
+                "user_id": event.user_id,
+                "user_email": event.user_email,
+                "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            }
 
-                if package_create_event is None or package_create_event.status != FalkorEventStatus.SYNCED:
+            metadata = {
+                "org_id": event.org_id,
+                "org_name": event.org_name,
+                "package_id": event.package_id,
+                "package_name": event.package_name,
+                "resource_id": event.resource_id,
+                "resource_name": event.resource_name,
+            }
+
+            if event.resource_type == FalkorEventResourceType.STREAM:
+                document_event["user_id"] = event.user_email
+                metadata["org_id"] = event.org_name
+                metadata["package_id"] = event.package_name
+                metadata["resource_name"] = event.resource_name
+
+            if not self.falkor.document_exists(event.package_id, event.resource_id):
+                self.falkor.document_create(
+                    event.package_id,
+                    event.resource_id,
+                    [document_event],
+                    metadata
+                )
+            else:
+                document_events: List[dict] = self.falkor.document_get(
+                    event.package_id,
+                    event.resource_id
+                )
+
+                if document_event in document_events:
+                    log.warning(
+                        f"[Event ID: {event.id}] Already synced to Falkor")
+                    event.status = FalkorEventStatus.SYNCED
+                    event.synced_at = datetime.now()
+                    session.commit()
                     return
 
-                event.status = FalkorEventStatus.PROCESSING
-                session.commit()
+                document_events.append(document_event)
 
-                try:
-                    document_events: List[dict] = self.falkor.document_get(
-                        entity["package_id"],
-                        entity["id"]
-                    )
-
-                    document_event = {
-                        "id": str(event.id),
-                        "event_type": event.event_type,
-                        "user_id": event.user_id,
-                        "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                    }
-
-                    if document_event in document_events:
-                        log.warning(
-                            f"[Event ID: {event.id}] Already synced to Falkor")
-                        event.status = FalkorEventStatus.SYNCED
-                        event.synced_at = datetime.now()
-                        session.commit()
-                        return
-
-                    document_events.append(document_event)
-
-                    self.falkor.document_update(
-                        str(event.object_id),
-                        entity["package_id"],
-                        document_events
-                    )
-                except HTTPError as e:
-                    if e.response.status_code == 404:
-                        log.debug(entity)
-                        package_info = toolkit.get_action("package_show")(
-                            data_dict={"id": entity["package_id"]}
-                        )
-                        self.falkor.document_create(
-                            event,
-                            {
-                                "org_id": package_info["organization"]["id"],
-                                "org_name": package_info["organization"]["title"],
-                                "package_id": entity["package_id"],
-                                "package_name": package_info["name"],
-                                "resource_id": str(event.object_id),
-                                "resource_name": entity["name"]
-                            }
-                        )
-                    else:
-                        raise e
+                self.falkor.document_update(
+                    str(event.resource_id),
+                    event.package_id,
+                    document_events
+                )
 
             event.status = FalkorEventStatus.SYNCED
             event.synced_at = datetime.now()
