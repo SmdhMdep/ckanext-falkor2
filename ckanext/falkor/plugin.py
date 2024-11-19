@@ -167,20 +167,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
         try:
             insert_new_falkor_sync_job(session, job)
 
-            packages = get_packages_without_create_events(session)
-            for package in packages:
-                event = FalkorEvent(
-                    object_id=package.id,
-                    object_type=FalkorEventObjectType.PACKAGE,
-                    event_type=FalkorEventType.CREATE,
-                    user_id="sync_job",
-                    created_at=package.metadata_created
-                )
-                jobs.enqueue(
-                    self.event_handler.handle,
-                    [event, table_dictize(package, CONTEXT)]
-                )
-
             resources = get_resources_without_create_events(session)
             for resource in resources:
                 event = FalkorEvent(
