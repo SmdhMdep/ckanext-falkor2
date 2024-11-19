@@ -1,4 +1,5 @@
 import logging
+import json
 import sqlalchemy as sa
 
 from datetime import datetime
@@ -75,7 +76,7 @@ class EventHandler:
                 self.falkor.document_create(
                     package_id,
                     resource_id,
-                    [document_event],
+                    json.dumps([document_event]),
                     metadata
                 )
             else:
@@ -97,7 +98,7 @@ class EventHandler:
                 self.falkor.document_update(
                     resource_id,
                     package_id,
-                    document_events
+                    json.dumps(document_events)
                 )
 
             event.status = FalkorEventStatus.SYNCED
