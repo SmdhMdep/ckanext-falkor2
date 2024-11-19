@@ -271,7 +271,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
         jobs.enqueue(
             self.event_handler.handle_event,
             args=[event],
-            queue=JobQueueName.EVENT
         )
 
         self.get_helpers()
@@ -295,7 +294,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
         jobs.enqueue(
             self.event_handler.handle_event,
             args=[event],
-            queue=JobQueueName.EVENT
         )
 
     def construct_falkor_url(self, resource):
