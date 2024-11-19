@@ -22,9 +22,9 @@ branch_labels = None
 depends_on = None
 
 
-class FalkorEventObjectType(Enum):
-    PACKAGE = 'package'
-    RESOURCE = 'resource'
+class FalkorEventResourceType(Enum):
+    default = 'default'
+    stream = 'stream'
 
 
 class FalkorEventStatus(Enum):
@@ -47,20 +47,26 @@ def upgrade():
         meta.MetaData(),
         sa.Column(
             "id",
-            sa.dialects.postgresql.UUID(as_uuid=True),
+            sa.dialects.postgresql.UUID,
             primary_key=True,
             nullable=False,
             default=uuid.uuid4
         ),
-        sa.Column("object_id", sa.dialects.postgresql.UUID(
-            as_uuid=True), nullable=False),
+        sa.Column("org_id", sa.dialects.postgresql.UUID, nullable=False),
+        sa.Column("org_name", sa.TEXT, nullable=False),
+        sa.Column("package_id", sa.dialects.postgresql.UUID, nullable=False),
+        sa.Column("package_name", sa.TEXT, nullable=False),
+        sa.Column("resource_id", sa.dialects.postgresql.UUID, nullable=False),
+        sa.Column("resource_name", sa.TEXT, nullable=False),
         sa.Column(
-            "object_type",
-            sa.Enum(FalkorEventObjectType),
-            nullable=False
+            "resource_type",
+            sa.Enum(FalkorEventResourceType),
+            nullable=False,
+            default=FalkorEventResourceType.default
         ),
         sa.Column("event_type", sa.Enum(FalkorEventType), nullable=False),
         sa.Column("user_id", sa.TEXT, nullable=False, default="guest"),
+        sa.Column("user_email", sa.TEXT, nullable=False, default="guest"),
         sa.Column(
             "status",
             sa.Enum(FalkorEventStatus),
