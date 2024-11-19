@@ -9,7 +9,6 @@ from ckanext.falkor.model import (
     FalkorEvent,
     FalkorEventType,
     FalkorEventStatus,
-    FalkorEventObjectType,
     get_package_create_event_for_resource
 )
 from ckanext.falkor.client import Client
@@ -33,7 +32,7 @@ class EventHandler:
     def __init__(self, falkor: Client):
         self.falkor = falkor
 
-    def handle(self, event: FalkorEvent, entity: dict):
+    def handle_event(self, event: FalkorEvent):
         session: sa.orm.Session = meta.create_local_session()
         session.add(event)
         session.commit()
