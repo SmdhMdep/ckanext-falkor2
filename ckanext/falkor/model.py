@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Optional, List, Union
 from sqlalchemy.ext.declarative import declarative_base
-from ckan.model import meta, Package, Resource
+from ckan.model import meta, Resource
 from ckan.lib.dictization import table_dictize
 
 Base = declarative_base(metadata=meta.metadata)
