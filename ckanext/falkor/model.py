@@ -103,6 +103,8 @@ def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) ->
     if resource["resource_type"] == FalkorEventResourceType.STREAM:
         event.resource_type = FalkorEventResourceType.STREAM
 
+    return event
+
 
 def get_resources_without_create_events(session: sa.orm.Session) -> List[Resource]:
     distinct_resource_creates = session.query(
