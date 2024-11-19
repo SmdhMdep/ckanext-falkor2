@@ -36,11 +36,8 @@ class EventHandler:
         session.add(event)
         session.commit()
         try:
-
             event.status = FalkorEventStatus.PROCESSING
             session.commit()
-            if not self.falkor.dataset_exists(event.package_id):
-                self.falkor.dataset_create(event.package_id)
 
             document_event = {
                 "id": str(event.id),
@@ -59,23 +56,33 @@ class EventHandler:
                 "resource_name": event.resource_name,
             }
 
+            package_id = event.package_id
+            resource_id = event.resource_id
+
             if event.resource_type == FalkorEventResourceType.STREAM:
                 document_event["user_id"] = event.user_email
+
                 metadata["org_id"] = event.org_name
                 metadata["package_id"] = event.package_name
                 metadata["resource_name"] = event.resource_name
 
-            if not self.falkor.document_exists(event.package_id, event.resource_id):
+                package_id = event.package_name
+                resource_id = event.resource_name
+
+            if not self.falkor.dataset_exists(package_id):
+                self.falkor.dataset_create(package_id)
+
+            if not self.falkor.document_exists(package_id, resource_id):
                 self.falkor.document_create(
-                    event.package_id,
-                    event.resource_id,
+                    package_id,
+                    resource_id,
                     [document_event],
                     metadata
                 )
             else:
                 document_events: List[dict] = self.falkor.document_get(
-                    event.package_id,
-                    event.resource_id
+                    package_id,
+                    resource_id
                 )
 
                 if document_event in document_events:
@@ -89,8 +96,8 @@ class EventHandler:
                 document_events.append(document_event)
 
                 self.falkor.document_update(
-                    str(event.resource_id),
-                    event.package_id,
+                    resource_id,
+                    package_id,
                     document_events
                 )
 
