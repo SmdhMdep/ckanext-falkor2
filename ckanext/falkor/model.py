@@ -14,9 +14,9 @@ Base = declarative_base(metadata=meta.metadata)
 log = logging.getLogger(__name__)
 
 
-class FalkorEventObjectType(str, Enum):
-    PACKAGE = 'package'
-    RESOURCE = 'resource'
+class FalkorEventResourceType(Enum):
+    default = 'default'
+    stream = 'stream'
 
 
 class FalkorEventStatus(str, Enum):
