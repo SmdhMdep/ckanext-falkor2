@@ -99,7 +99,7 @@ class Client:
         try:
             falkor_get(url, self.__auth).raise_for_status()
             return True
-        except HttpError as e:
+        except HTTPError as e:
             if e.response.status_code == 404:
                 return False
             else:
