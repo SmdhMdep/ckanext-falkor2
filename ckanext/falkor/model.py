@@ -86,20 +86,12 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     ).all()
 
 
-def get_dictized_entity(
+def get_dictized_resource(
         session: sa.orm.Session,
-        context: dict, id: str,
-        object_type: FalkorEventObjectType
+        context: dict,
+        id: str,
 ) -> dict:
-    ckan_model_type: Union[Package, Resource]
-    if object_type == FalkorEventObjectType.RESOURCE:
-        ckan_model_type = Resource
-    elif object_type == FalkorEventObjectType.PACKAGE:
-        ckan_model_type = Package
-    else:
-        raise Exception("Invalid object type for retrieving dictized object")
-
-    return table_dictize(session.query(ckan_model_type).get(id), context)
+    return table_dictize(session.query(Resource).get(id), context)
 
 
 def get_package_create_event_for_resource(
@@ -108,8 +100,6 @@ def get_package_create_event_for_resource(
 ) -> FalkorEvent:
     package = session.query(FalkorEvent).filter(
         FalkorEvent.object_id == package_id
-    ).filter(
-        FalkorEvent.object_type == FalkorEventObjectType.PACKAGE
     ).filter(
         FalkorEvent.event_type == FalkorEventType.CREATE
     ).first()
