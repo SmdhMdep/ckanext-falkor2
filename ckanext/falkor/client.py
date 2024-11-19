@@ -1,10 +1,9 @@
 import requests
 import logging
-import json
 
 from typing import TypedDict
 from ckanext.falkor import auth
-from ckanext.falkor.model import FalkorEvent
+from requests import HTTPError
 
 log = logging.getLogger(__name__)
 
@@ -100,7 +99,7 @@ class Client:
         try:
             falkor_get(url, self.__auth).raise_for_status()
             return True
-        except HTTPError as e:
+        except HttpError as e:
             if e.response.status_code == 404:
                 return False
             else:
