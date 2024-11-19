@@ -72,8 +72,6 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     distinct_resource_creates = session.query(
         FalkorEvent
     ).filter(
-        FalkorEvent.object_type == FalkorEventObjectType.RESOURCE
-    ).filter(
         FalkorEvent.event_type == FalkorEventType.CREATE
     ).subquery()
 
