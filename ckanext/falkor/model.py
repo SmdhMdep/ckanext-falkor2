@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy.ext.declarative import declarative_base
-from ckan.model import meta, Resource
+from ckan.model import meta, Resource, Package
 from ckan.lib.dictization import table_dictize
 
 Base = declarative_base(metadata=meta.metadata)
@@ -78,9 +78,8 @@ def get_event(session: sa.orm.Session, event_id: str) -> FalkorEvent:
 
 
 def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) -> FalkorEvent:
-    package = toolkit.get_action(
-        "package_show")(context=TOOLKIT_CONTEXT, data_dict={"id": resource["package_id"]})
-    org = package["organization"]
+    package = get_dictized_package(resource["package_id"])
+    org = package["org"]
 
     event = FalkorEvent(
         org_id=org["id"],
@@ -129,6 +128,21 @@ def get_dictized_resource(
         id: str,
 ) -> dict:
     return table_dictize(session.query(Resource).get(id), context)
+
+
+def get_dictized_package(
+    id: str
+) -> Package:
+    session = meta.create_local_session()
+    try:
+        return table_dictize(session.query(Package).get(id), TOOLKIT_CONTEXT)
+    finally:
+        session.close()
+
+
+def get_dictized_org(
+    id: str
+) ->
 
 
 def get_failed_events(
