@@ -294,8 +294,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
     ):
         if operation is None:
             return
-
-        if not isinstance(entity, ckan_model.Resource):
+        elif not isinstance(entity, ckan_model.Resource):
             return
 
         event = FalkorEvent(
