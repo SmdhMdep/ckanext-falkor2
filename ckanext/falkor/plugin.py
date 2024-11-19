@@ -273,11 +273,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
         if not valid_url_pattern.match(request.url) or resource_id not in request.url:
             return
 
-        log.debug(resource_dict)
-
         event = FalkorEvent(
-            object_id=resource_id,
-            object_type=FalkorEventObjectType.RESOURCE,
+            resource_id=resource_id,
             event_type=FalkorEventType.READ,
             user_id=get_user_id(),
             created_at=datetime.now()
