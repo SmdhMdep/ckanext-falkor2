@@ -60,7 +60,7 @@ class FalkorEvent(Base):
     resource_type = sa.Column(
         sa.Enum(FalkorEventResourceType),
         nullable=False,
-        default=FalkorEventResourceType.default
+        default=FalkorEventResourceType.DEFAULT
     )
     event_type = sa.Column(sa.Enum(FalkorEventType), nullable=False)
     user_id = sa.Column(sa.TEXT, nullable=False, default="guest")

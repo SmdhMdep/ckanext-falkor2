@@ -23,8 +23,8 @@ depends_on = None
 
 
 class FalkorEventResourceType(Enum):
-    default = 'default'
-    stream = 'stream'
+    DEFAULT = 'default'
+    STREAM = 'stream'
 
 
 class FalkorEventStatus(Enum):
@@ -81,6 +81,6 @@ def downgrade():
     op.drop_table(
         "falkor_event"
     )
-    op.execute('DROP TYPE IF EXISTS falkoreventobjecttype;')
+    op.execute('DROP TYPE IF EXISTS falkoreventresourcetype;')
     op.execute('DROP TYPE IF EXISTS falkoreventtype;')
     op.execute('DROP TYPE IF EXISTS falkoreventstatus;')
