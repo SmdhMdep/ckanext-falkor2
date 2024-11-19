@@ -34,7 +34,6 @@ class EventHandler:
     def handle_event(self, event: FalkorEvent):
         session: sa.orm.Session = meta.create_local_session()
         session.add(event)
-        session.commit()
         try:
             event.status = FalkorEventStatus.PROCESSING
             session.commit()
