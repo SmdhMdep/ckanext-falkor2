@@ -80,7 +80,6 @@ def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) ->
     package = table_dictize(Package.get(
         resource["package_id"]), TOOLKIT_CONTEXT)
     org = table_dictize(Group.get(package["owner_org"]), TOOLKIT_CONTEXT)
-    log.debug(org)
 
     event = FalkorEvent(
         org_id=org["id"],
