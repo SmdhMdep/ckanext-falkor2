@@ -62,7 +62,7 @@ def upgrade():
             "resource_type",
             sa.Enum(FalkorEventResourceType),
             nullable=False,
-            default=FalkorEventResourceType.default
+            default=FalkorEventResourceType.DEFAULT
         ),
         sa.Column("event_type", sa.Enum(FalkorEventType), nullable=False),
         sa.Column("user_id", sa.TEXT, nullable=False, default="guest"),
