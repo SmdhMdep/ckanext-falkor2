@@ -42,15 +42,20 @@ class FalkorEvent(Base):
         nullable=False,
         default=uuid4
     )
-    object_id = sa.Column(sa.dialects.postgresql.UUID(
-        as_uuid=True), nullable=False)
-    object_type = sa.Column(sa.Enum(FalkorEventObjectType), nullable=False)
+    org_id = sa.Column(sa.dialects.postgresql.UUID, nullable=False)
+    org_name = sa.Column(sa.TEXT, nullable=False)
+    package_id = sa.Column(sa.dialects.postgresql.UUID, nullable=False)
+    package_name = sa.Column(sa.TEXT, nullable=False)
+    resource_id = sa.Column(sa.dialects.postgresql.UUID, nullable=False)
+    resource_name = sa.Column(sa.TEXT, nullable=False)
+    resource_type = sa.Column(
+        sa.Enum(FalkorEventResourceType),
+        nullable=False,
+        default=FalkorEventResourceType.default
+    )
     event_type = sa.Column(sa.Enum(FalkorEventType), nullable=False)
     user_id = sa.Column(sa.TEXT, nullable=False, default="guest")
-    status = sa.Column(
-        sa.Enum(FalkorEventStatus),
-        default=FalkorEventStatus.PENDING
-    )
+    user_email = sa.Column(sa.TEXT, nullable=False, default="guest")
     created_at = sa.Column(sa.DateTime, nullable=False)
     synced_at = sa.Column(sa.DateTime, nullable=True)
 
@@ -61,26 +66,6 @@ def get_pending_events(session: sa.orm.Session) -> List[FalkorEvent]:
 
 def get_event(session: sa.orm.Session, event_id: str) -> FalkorEvent:
     return session.query(FalkorEvent).get(event_id)
-
-
-def get_packages_without_create_events(session: sa.orm.Session) -> List[Package]:
-    distinct_package_creates = session.query(
-        FalkorEvent
-    ).filter(
-        FalkorEvent.object_type == FalkorEventObjectType.PACKAGE
-    ).filter(
-        FalkorEvent.event_type == FalkorEventType.CREATE
-    ).subquery()
-
-    return session.query(
-        Package
-    ).outerjoin(
-        distinct_package_creates,
-        Package.id == sa.cast(
-            distinct_package_creates.c.object_id, sa.TEXT)
-    ).filter(
-        sa.cast(distinct_package_creates.c.object_id, sa.TEXT) == None
-    ).all()
 
 
 def get_resources_without_create_events(session: sa.orm.Session) -> List[Resource]:
