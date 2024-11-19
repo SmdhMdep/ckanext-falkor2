@@ -15,8 +15,8 @@ log = logging.getLogger(__name__)
 
 
 class FalkorEventResourceType(Enum):
-    default = 'default'
-    stream = 'stream'
+    DEFAULT = 'default'
+    STREAM = 'stream'
 
 
 class FalkorEventStatus(str, Enum):
