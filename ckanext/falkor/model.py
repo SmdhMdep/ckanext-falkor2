@@ -94,19 +94,6 @@ def get_dictized_resource(
     return table_dictize(session.query(Resource).get(id), context)
 
 
-def get_package_create_event_for_resource(
-        session: sa.orm.Session,
-        package_id: UUID
-) -> FalkorEvent:
-    package = session.query(FalkorEvent).filter(
-        FalkorEvent.object_id == package_id
-    ).filter(
-        FalkorEvent.event_type == FalkorEventType.CREATE
-    ).first()
-
-    return package
-
-
 def get_failed_events(
     session: sa.orm.Session,
 ) -> List[FalkorEvent]:
