@@ -95,6 +95,29 @@ class Client:
 
         falkor_post(url, payload, self.__auth).raise_for_status()
 
+    def dataset_exists(self, package_id: str) -> bool:
+        url = self.__core_base_url + self.__tenant_id + "/dataset/" + package_id + "/info"
+        try:
+            falkor_get(url, self.__auth).raise_for_status()
+            return True
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
+    def document_exists(self, package_id: str, resource_id: str) -> bool:
+        url = self.__core_base_url + self.__tenant_id + \
+            "/dataset/" + package_id + "/" + resource_id + "/info"
+        try:
+            falkor_get(url, self.__auth).raise_for_status()
+            return True
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
     def document_get(self, package_id: str, resource_id: str):
         url = (
             self.__core_base_url
@@ -112,7 +135,9 @@ class Client:
 
     def document_create(
         self,
-        event: FalkorEvent,
+        dataset_id: str,
+        document_id: str,
+        data: str,
         metadata: dict,
     ):
 
@@ -120,17 +145,12 @@ class Client:
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + metadata["package_id"]
+            + dataset_id
             + "/create"
         )
         payload = {
-            "documentId": str(event.object_id),
-            "data": json.dumps([{
-                "id": str(event.id),
-                "event_type": event.event_type,
-                "user_id": event.user_id,
-                "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-            }]),
+            "documentId": document_id,
+            "data": data,
             "documentMetadata": metadata,
         }
 
