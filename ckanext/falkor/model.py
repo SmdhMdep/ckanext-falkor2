@@ -96,9 +96,9 @@ def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) ->
     )
 
     if event.event_type == FalkorEventType.CREATE:
-        event.created_at = datetime.fromtimestamp(resource["created"])
+        event.created_at = datetime.fromisoformat(resource["created"])
     elif event.event_type == FalkorEventType.UPDATE:
-        event.created_at = datetime.fromtimestamp(resource["last_modified"])
+        event.created_at = datetime.fromisoformat(resource["last_modified"])
     else:
         event.created_at = datetime.now()
 
