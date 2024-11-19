@@ -64,7 +64,8 @@ class FalkorEvent(Base):
     event_type = sa.Column(sa.Enum(FalkorEventType), nullable=False)
     user_id = sa.Column(sa.TEXT, nullable=False, default="guest")
     user_email = sa.Column(sa.TEXT, nullable=False, default="guest")
-    status = sa.Column(sa.Enum(FalkorEventStatus), default=FalkorEventStatus.PENDING)
+    status = sa.Column(sa.Enum(FalkorEventStatus),
+                       default=FalkorEventStatus.PENDING)
     created_at = sa.Column(sa.DateTime, nullable=False)
     synced_at = sa.Column(sa.DateTime, nullable=True)
 
@@ -129,8 +130,6 @@ def get_dictized_resource(
         session: sa.orm.Session,
         context: dict,
         id: str,
-
-
 ) -> dict:
     return table_dictize(session.query(Resource).get(id), context)
 
