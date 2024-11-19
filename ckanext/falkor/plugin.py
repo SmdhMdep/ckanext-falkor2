@@ -172,14 +172,14 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 )
                 jobs.enqueue(
                     self.event_handler.handle,
-                    [event, table_dictize(resource, CONTEXT)]
+                    [event, table_dictize(resource, TOOLKIT_CONTEXT)]
                 )
 
             pending_events = get_pending_events(session)
             for event in pending_events:
                 entity = get_dictized_entity(
                     session,
-                    CONTEXT,
+                    TOOLKIT_CONTEXT,
                     str(event.object_id),
                     event.object_type
                 )
@@ -212,7 +212,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         for event in failed_events:
             entity = get_dictized_entity(
                 session,
-                CONTEXT,
+                TOOLKIT_CONTEXT,
                 str(event.object_id),
                 event.object_type
             )
@@ -230,7 +230,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         event = get_event(session, event_id)
         entity = get_dictized_entity(
             session,
-            CONTEXT,
+            TOOLKIT_CONTEXT,
             str(event.object_id),
             event.object_type
         )
@@ -294,7 +294,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
         jobs.enqueue(
             self.event_handler.handle,
-            args=[event, table_dictize(entity, CONTEXT)]
+            args=[event, table_dictize(entity, TOOLKIT_CONTEXT)]
         )
 
     def construct_falkor_url(self, resource):
