@@ -9,6 +9,7 @@ from ckanext.falkor.model import (
     FalkorEventType,
     FalkorEventStatus,
     FalkorEventResourceType,
+    JobQueueName
 )
 from ckanext.falkor.client import Client
 

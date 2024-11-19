@@ -15,10 +15,12 @@ from ckan.lib.dictization import table_dictize
 from ckanext.falkor import client, auth
 from ckanext.falkor.model import (
     TOOLKIT_CONTEXT,
+    JobQueueName,
     FalkorEvent,
     FalkorEventType,
     FalkorSyncJobStatus,
     new_falkor_sync_job,
+    create_new_event,
     get_event,
     get_pending_events,
     get_resources_without_create_events,
@@ -45,9 +47,18 @@ def get_config_value(config, key: str) -> str:
     return value
 
 
-def get_user_id() -> str:
+def get_user() -> dict:
     user = toolkit.g.userobj
-    return "guest" if not user else user.id
+    if not user:
+        return {
+            "id": "guest",
+            "email": "guest"
+        }
+
+    return {
+        "id": user.id,
+        "email": user.email
+    }
 
 
 def check_access():
@@ -253,16 +264,16 @@ class FalkorPlugin(plugins.SingletonPlugin):
         if not valid_url_pattern.match(request.url) or resource_id not in request.url:
             return
 
-        event = FalkorEvent(
-            resource_id=resource_id,
-            event_type=FalkorEventType.READ,
-            user_id=get_user_id(),
-            created_at=datetime.now()
+        event = create_new_event(
+            FalkorEventType.READ,
+            resource_dict,
+            get_user()
         )
 
         jobs.enqueue(
-            self.event_handler.handle,
-            [event, resource_dict]
+            self.event_handler.handle_event,
+            args=[event],
+            queue=JobQueueName.EVENT
         )
 
         self.get_helpers()
@@ -277,24 +288,16 @@ class FalkorPlugin(plugins.SingletonPlugin):
         elif not isinstance(entity, ckan_model.Resource):
             return
 
-        event = FalkorEvent(
-            object_id=entity.id,
-            event_type=DomainObjectOperationToFalkorEventTypeMap[
-                operation
-            ],
-            user_id=get_user_id(),
+        event = create_new_event(
+            DomainObjectOperationToFalkorEventTypeMap[operation],
+            table_dictize(entity, TOOLKIT_CONTEXT),
+            get_user()
         )
 
-        if event.event_type == FalkorEventType.CREATE:
-            event.created_at = entity.created
-        elif event.event_type == FalkorEventType.UPDATE:
-            event.created_at = entity.last_modified
-        else:
-            event.created_at = datetime.now()
-
         jobs.enqueue(
-            self.event_handler.handle,
-            args=[event, table_dictize(entity, TOOLKIT_CONTEXT)]
+            self.event_handler.handle_event,
+            args=[event],
+            queue=JobQueueName.EVENT
         )
 
     def construct_falkor_url(self, resource):
