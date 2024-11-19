@@ -1,5 +1,6 @@
 import logging
 import sqlalchemy as sa
+import ckan.plugins.toolkit as toolkit
 
 from enum import Enum
 from uuid import UUID, uuid4
@@ -75,7 +76,32 @@ def get_event(session: sa.orm.Session, event_id: str) -> FalkorEvent:
     return session.query(FalkorEvent).get(event_id)
 
 
-def create_new_event(session: sa.orm.Session, entity: dict) -> FalkorEvent:
+def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) -> FalkorEvent:
+    package = toolkit.get_action(
+        "package_show")(context=TOOLKIT_CONTEXT, data_dict={"id": resource["package_id"]})
+    org = package["organization"]
+
+    event = FalkorEvent(
+        org_id=org["id"],
+        org_name=org["name"],
+        package_id=package["id"],
+        package_name=package["name"],
+        resource_id=resource["id"],
+        resource_name=resource["name"],
+        user_id=user["id"],
+        user_email=user["email"],
+        event_type=event_type,
+    )
+
+    if event.event_type == FalkorEventType.CREATE:
+        event.created_at = resource["created"]
+    elif event.event_type == FalkorEventType.UPDATE:
+        event.created_at = resource["last_modified"]
+    else:
+        event.created_at = datetime.now()
+
+    if resource["resource_type"] == FalkorEventResourceType.STREAM:
+        event.resource_type = FalkorEventResourceType.STREAM
 
 
 def get_resources_without_create_events(session: sa.orm.Session) -> List[Resource]:
