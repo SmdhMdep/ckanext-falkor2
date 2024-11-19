@@ -1,6 +1,7 @@
 import logging
 import sqlalchemy as sa
 import ckan.plugins.toolkit as toolkit
+import ckan.model as ckan_model
 
 from enum import Enum
 from uuid import UUID, uuid4
