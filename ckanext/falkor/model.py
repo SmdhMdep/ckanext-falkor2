@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from enum import Enum
 from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Optional, List, Union
+from typing import Optional, List
 from sqlalchemy.ext.declarative import declarative_base
 from ckan.model import meta, Resource
 from ckan.lib.dictization import table_dictize
