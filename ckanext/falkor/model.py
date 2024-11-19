@@ -1,6 +1,5 @@
 import logging
 import sqlalchemy as sa
-import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
 
 from enum import Enum
@@ -8,7 +7,7 @@ from uuid import UUID, uuid4
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy.ext.declarative import declarative_base
-from ckan.model import meta, Resource, Package
+from ckan.model import meta, Resource, Package, Group
 from ckan.lib.dictization import table_dictize
 
 Base = declarative_base(metadata=meta.metadata)
@@ -78,8 +77,10 @@ def get_event(session: sa.orm.Session, event_id: str) -> FalkorEvent:
 
 
 def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) -> FalkorEvent:
-    package = get_dictized_package(resource["package_id"])
-    org = package["org"]
+    package = table_dictize(Package.get(
+        resource["package_id"]), TOOLKIT_CONTEXT)
+    org = table_dictize(Group.get(package["owner_org"]), TOOLKIT_CONTEXT)
+    log.debug(org)
 
     event = FalkorEvent(
         org_id=org["id"],
@@ -94,9 +95,9 @@ def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) ->
     )
 
     if event.event_type == FalkorEventType.CREATE:
-        event.created_at = resource["created"]
+        event.created_at = datetime.fromtimestamp(resource["created"])
     elif event.event_type == FalkorEventType.UPDATE:
-        event.created_at = resource["last_modified"]
+        event.created_at = datetime.fromtimestamp(resource["last_modified"])
     else:
         event.created_at = datetime.now()
 
@@ -126,6 +127,8 @@ def get_dictized_resource(
         session: sa.orm.Session,
         context: dict,
         id: str,
+
+
 ) -> dict:
     return table_dictize(session.query(Resource).get(id), context)
 
@@ -138,11 +141,6 @@ def get_dictized_package(
         return table_dictize(session.query(Package).get(id), TOOLKIT_CONTEXT)
     finally:
         session.close()
-
-
-def get_dictized_org(
-    id: str
-) ->
 
 
 def get_failed_events(
