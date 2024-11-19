@@ -10,11 +10,11 @@ import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
 import ckan.model as ckan_model
 import ckan.lib.base as base
-from ckan.model.domain_object import DomainObjectOperation
 from ckan.lib.dictization import table_dictize
 
 from ckanext.falkor import client, auth
 from ckanext.falkor.model import (
+    TOOLKIT_CONTEXT,
     FalkorEvent,
     FalkorEventType,
     FalkorSyncJobStatus,
@@ -34,12 +34,6 @@ from ckanext.falkor.event_handler import (
 from uuid import uuid4
 
 render = base.render
-
-CONTEXT = {
-    "model": ckan_model,
-    "ignore_auth": True,
-    "defer_commit": True
-}
 
 log = logging.getLogger(__name__)
 

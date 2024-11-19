@@ -14,6 +14,13 @@ Base = declarative_base(metadata=meta.metadata)
 log = logging.getLogger(__name__)
 
 
+TOOLKIT_CONTEXT = {
+    "model": ckan_model,
+    "ignore_auth": True,
+    "defer_commit": True
+}
+
+
 class FalkorEventResourceType(Enum):
     DEFAULT = 'default'
     STREAM = 'stream'
@@ -66,6 +73,9 @@ def get_pending_events(session: sa.orm.Session) -> List[FalkorEvent]:
 
 def get_event(session: sa.orm.Session, event_id: str) -> FalkorEvent:
     return session.query(FalkorEvent).get(event_id)
+
+
+def create_new_event(session: sa.orm.Session, entity: dict) -> FalkorEvent:
 
 
 def get_resources_without_create_events(session: sa.orm.Session) -> List[Resource]:
