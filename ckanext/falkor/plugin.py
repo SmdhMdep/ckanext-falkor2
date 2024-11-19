@@ -17,12 +17,10 @@ from ckanext.falkor import client, auth
 from ckanext.falkor.model import (
     FalkorEvent,
     FalkorEventType,
-    FalkorEventObjectType,
     FalkorSyncJobStatus,
     new_falkor_sync_job,
     get_event,
     get_pending_events,
-    get_packages_without_create_events,
     get_resources_without_create_events,
     insert_new_falkor_sync_job,
     get_dictized_entity,
@@ -300,6 +298,9 @@ class FalkorPlugin(plugins.SingletonPlugin):
         if operation is None:
             return
 
+        if not isinstance(entity, ckan_model.Resource):
+            return
+
         event = FalkorEvent(
             object_id=entity.id,
             event_type=DomainObjectOperationToFalkorEventTypeMap[
@@ -308,26 +309,12 @@ class FalkorPlugin(plugins.SingletonPlugin):
             user_id=get_user_id(),
         )
 
-        if isinstance(entity, ckan_model.Package):
-            # Currently Falkor does not track changes to packages.
-            # We only use the create event to create the dataset
-            # and ignore any further changes.
-            if event.event_type != FalkorEventType.CREATE:
-                return
-
-            event.object_type = FalkorEventObjectType.PACKAGE
-            event.created_at = entity.metadata_created
-
-        elif isinstance(entity, ckan_model.Resource):
-            event.object_type = FalkorEventObjectType.RESOURCE
-            if operation == DomainObjectOperation.new:
-                event.created_at = entity.created
-            elif operation == DomainObjectOperation.update:
-                event.created_at = entity.last_modified
-            else:
-                event.created_at = datetime.now()
+        if event.event_type == FalkorEventType.CREATE:
+            event.created_at = entity.created
+        elif event.event_type == FalkorEventType.UPDATE:
+            event.created_at = entity.last_modified
         else:
-            return
+            event.created_at = datetime.now()
 
         jobs.enqueue(
             self.event_handler.handle,
