@@ -44,7 +44,7 @@ class EventHandler:
                 "event_type": event.event_type,
                 "user_id": event.user_id,
                 "user_email": event.user_email,
-                "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             }
 
             metadata = {
@@ -76,7 +76,7 @@ class EventHandler:
                 self.falkor.document_create(
                     package_id,
                     resource_id,
-                    json.dumps([document_event]),
+                    [document_event],
                     metadata
                 )
             else:
@@ -98,7 +98,7 @@ class EventHandler:
                 self.falkor.document_update(
                     resource_id,
                     package_id,
-                    json.dumps(document_events)
+                    document_events
                 )
 
             event.status = FalkorEventStatus.SYNCED

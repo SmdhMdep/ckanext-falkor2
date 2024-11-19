@@ -1,5 +1,6 @@
 import requests
 import logging
+import json
 
 from typing import TypedDict
 from ckanext.falkor import auth
@@ -149,7 +150,7 @@ class Client:
         )
         payload = {
             "documentId": document_id,
-            "data": data,
+            "data": json.dumps(data),
             "documentMetadata": metadata,
         }
 
