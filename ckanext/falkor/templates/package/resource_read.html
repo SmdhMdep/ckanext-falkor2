@@ -2,7 +2,7 @@
 
 {% block resource_actions_inner %}
     <li>
-      {% set url = h.construct_falkor_url(res) %}
+      {% set url = h.construct_falkor_url(res, package) %}
       <a class="btn btn-default" href="{{ url }}"><i class="fa fa-clipboard"></i> Audit</a>
     </li>
   {{ super() }}

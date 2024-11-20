@@ -18,6 +18,7 @@ from ckanext.falkor.model import (
     FalkorEventStatus,
     FalkorEventType,
     FalkorSyncJobStatus,
+    FalkorEventResourceType,
     new_falkor_sync_job,
     create_new_event,
     get_events,
@@ -297,9 +298,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
             args=[event],
         )
 
-    def construct_falkor_url(self, resource):
+    def construct_falkor_url(self, resource, package):
         resource_id = resource["id"]
-        package_id = resource["package_id"]
+        package_id = package["id"]
+
+        if "resource_type" in resource and resource["resource_type"].lower() == FalkorEventResourceType.STREAM.value:
+            resource_id = resource["name"]
+            package_id = package["name"]
 
         return f"{self.audit_base_url}dataset/{package_id}/document/{resource_id}"
 
