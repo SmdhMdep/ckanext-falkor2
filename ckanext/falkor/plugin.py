@@ -15,8 +15,6 @@ from ckan.lib.dictization import table_dictize
 from ckanext.falkor import client, auth
 from ckanext.falkor.model import (
     TOOLKIT_CONTEXT,
-    JobQueueName,
-    FalkorEvent,
     FalkorEventStatus,
     FalkorEventType,
     FalkorSyncJobStatus,
