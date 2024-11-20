@@ -52,6 +52,7 @@ class EventHandler:
                 "package_name": event.package_name,
                 "resource_id": event.resource_id,
                 "resource_name": event.resource_name,
+                "resource_type": event.resource_type
             }
 
             package_id = event.package_id
@@ -62,7 +63,7 @@ class EventHandler:
 
                 metadata["org_id"] = event.org_name
                 metadata["package_id"] = event.package_name
-                metadata["resource_name"] = event.resource_name
+                metadata["resource_id"] = event.resource_name
 
                 package_id = event.package_name
                 resource_id = event.resource_name
