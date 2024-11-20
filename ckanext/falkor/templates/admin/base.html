@@ -14,7 +14,13 @@
         {{ _('Sync') }}
       </button>
 </form>
-<h3>Failed events</h3>
+<h3>Events</h3>
+<ul class="nav nav-tabs">
+<li role="presentation" class="{{ 'active' if event_status == 'failed' }}"><a href="?event_status=failed">Failed</a></li>
+  <li role="presentation" class="{{ 'active' if event_status == 'pending' }}"><a href="?event_status=pending">Pending</a></li>
+  <li role="presentation" class="{{ 'active' if event_status == 'processing' }}"><a href="?event_status=processing">Processing</a></li>
+  <li role="presentation" class="{{ 'active' if event_status == 'synced' }}"><a href="?event_status=synced">Synced</a></li>
+</ul>
 <table class="table table-responsive">
   <thead>
     <tr>
@@ -25,12 +31,12 @@
       <th scope="col">User ID</th>
       <th scope="col">Created At</th>
       <th scope="col">
-        {% if failed_events | length > 0 %}
+        {% if events | length > 0 %}
           <form method="POST" action="{{ h.url_for("falkor_admin.reprocess_all") }}" id="form-reprocess-all">
                 <button
                   class="btn btn-sm btn-warning"
                   type="submit"
-                  title="{{ _('Reprocess all failed events') }}"
+                  title="{{ _('Reprocess all events') }}"
                 >
                   {{ _('Reprocess All') }}
                 </button>
@@ -40,7 +46,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for event in failed_events %}
+    {% for event in events %}
       <tr>
         <td>{{ event.id }}</td>
         <td>{{ event.resource_id }}</td>
@@ -53,7 +59,7 @@
                 <button
                   class="btn btn-sm btn-warning"
                   type="submit"
-                  title="{{ _('Reprocess failed event') }}"
+                  title="{{ _('Reprocess event') }}"
                 >
                   {{ _('Reprocess') }}
                 </button>

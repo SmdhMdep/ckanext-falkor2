@@ -149,14 +149,21 @@ class FalkorPlugin(plugins.SingletonPlugin):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         recent_job_limit = 10
         sync_jobs = get_sync_job_history(session, recent_job_limit)
-        failed_events = get_events(FalkorEventStatus.FAILED)
+        event_status = FalkorEventStatus.FAILED
+
+        if "event_status" in request.args:
+            event_status = FalkorEventStatus[
+                request.args["event_status"].upper()
+            ]
+
         session.close()
         return render(
             "admin/base.html",
             extra_vars={
                 "latest_job_run": sync_jobs[0].start if len(sync_jobs) else None,
                 "sync_jobs": sync_jobs,
-                "failed_events": failed_events
+                "events": get_events(event_status),
+                "event_status": event_status.value
             }
         )
 
