@@ -298,7 +298,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         resource_id = resource["id"]
         package_id = resource["package_id"]
 
-        return f"{self.audit_base_url}{package_id}/{resource_id}"
+        return f"{self.audit_base_url}dataset/{package_id}/document/{resource_id}"
 
     def get_helpers(self):
         return {"construct_falkor_url": self.construct_falkor_url}
