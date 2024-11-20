@@ -153,9 +153,17 @@ class FalkorPlugin(plugins.SingletonPlugin):
         event_status = FalkorEventStatus.FAILED
 
         if "event_status" in request.args:
-            event_status = FalkorEventStatus[
-                request.args["event_status"].upper()
-            ]
+            event_query = request.args["event_status"].upper()
+            try:
+                event_status = FalkorEventStatus[event_query]
+            except KeyError:
+                toolkit.h.flash_error(
+                    f"""
+Invalid event type: \"{event_query.lower()}\".
+Must be one of \"pending\", \"processing\", \"synced\"or \"failed\".
+Defaulting to failed.
+"""
+                )
 
         session.close()
         return render(
