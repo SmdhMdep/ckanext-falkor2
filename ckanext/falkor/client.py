@@ -4,7 +4,8 @@ import json
 
 from typing import TypedDict
 from ckanext.falkor import auth
-from requests import HTTPError
+from requests import HTTPError, Session
+from requests.adapters import HTTPAdapter, Retry
 
 log = logging.getLogger(__name__)
 
@@ -22,42 +23,46 @@ def base_headers(access_token: str) -> HttpHeaders:
 
 
 def falkor_post(
+        session: Session,
         url: str,
         payload: dict,
         auth: auth.Auth,
 ) -> requests.Response:
-    response = requests.post(url, headers=base_headers(
+    response = session.post(url, headers=base_headers(
         auth.access_token), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
 def falkor_put(
+        session: Session,
         url: str,
         payload: dict,
         auth: auth.Auth,
 ) -> requests.Response:
-    response = requests.put(url, headers=base_headers(
+    response = session.put(url, headers=base_headers(
         auth.access_token), json=payload, timeout=120)
     log.debug(response.json())
     return response
 
 
 def falkor_get(
+    session: Session,
     url: str,
     auth: auth.Auth,
 ) -> requests.Response:
-    response = requests.get(url, headers=base_headers(
+    response = session.get(url, headers=base_headers(
         auth.access_token), timeout=120)
     log.debug(response.json())
     return response
 
 
 def falkor_delete(
+        session: Session,
         url: str,
         auth: auth.Auth,
 ) -> requests.Response:
-    response = requests.delete(url, headers=base_headers(
+    response = session.delete(url, headers=base_headers(
         auth.access_token), timeout=120)
     log.debug(response.json())
     return response
@@ -68,6 +73,7 @@ class Client:
     __core_base_url: str
     __admin_base_url: str
     __tenant_id: str
+    __http_session: Session
 
     def __init__(
         self,
@@ -81,6 +87,17 @@ class Client:
         self.__core_base_url = core_base_url
         self.__admin_base_url = admin_base_url
 
+        http_session = requests.Session()
+        retries = Retry(total=5,
+                        backoff_factor=0.1,
+                        status_forcelist=[500, 502, 503, 504])
+        http_session.mount(
+            self.__core_base_url, HTTPAdapter(max_retries=retries))
+        http_session.mount(
+            self.__admin_base_url, HTTPAdapter(max_retries=retries))
+
+        self.__http_session = http_session
+
     def dataset_create(self, package_id: str):
         url = self.__admin_base_url + self.__tenant_id + "/dataset"
         payload = {
@@ -93,12 +110,14 @@ class Client:
             "tokensEnabled": "false",
         }
 
-        falkor_post(url, payload, self.__auth).raise_for_status()
+        falkor_post(self.__http_session, url, payload,
+                    self.__auth).raise_for_status()
 
     def dataset_exists(self, package_id: str) -> bool:
         url = self.__core_base_url + self.__tenant_id + "/dataset/" + package_id + "/info"
         try:
-            falkor_get(url, self.__auth).raise_for_status()
+            falkor_get(self.__http_session, url,
+                       self.__auth).raise_for_status()
             return True
         except HTTPError as e:
             if e.response.status_code == 404:
@@ -110,7 +129,8 @@ class Client:
         url = self.__core_base_url + self.__tenant_id + \
             "/dataset/" + package_id + "/" + resource_id + "/info"
         try:
-            falkor_get(url, self.__auth).raise_for_status()
+            falkor_get(self.__http_session, url,
+                       self.__auth).raise_for_status()
             return True
         except HTTPError as e:
             if e.response.status_code == 404:
@@ -129,7 +149,7 @@ class Client:
             + "/body"
         )
 
-        resp = falkor_get(url, self.__auth)
+        resp = falkor_get(self.__http_session, url, self.__auth)
         resp.raise_for_status()
         return resp.json()
 
@@ -154,7 +174,8 @@ class Client:
             "documentMetadata": metadata,
         }
 
-        falkor_post(url, payload, self.__auth).raise_for_status()
+        falkor_post(self.__http_session, url, payload,
+                    self.__auth).raise_for_status()
 
     def document_update(
             self,
@@ -172,4 +193,5 @@ class Client:
             + "/body"
         )
 
-        falkor_put(url, data, self.__auth).raise_for_status()
+        falkor_put(self.__http_session, url, data,
+                   self.__auth).raise_for_status()
