@@ -74,6 +74,23 @@ def get_pending_events(session: sa.orm.Session) -> List[FalkorEvent]:
     return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.PENDING).all()
 
 
+def get_failed_events(
+    session: sa.orm.Session,
+) -> List[FalkorEvent]:
+    return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.FAILED).order_by(FalkorEvent.created_at.desc()).all()
+
+
+def get_events(status: Optional[FalkorEventStatus] = None) -> FalkorEvent:
+    session = meta.create_local_session()
+    try:
+        query = session.query(FalkorEvent).order_by(FalkorEvent.created_at.desc())
+        if status is not None:
+            query = query.filter(FalkorEvent.status == status)
+        return query.all()
+    finally:
+        session.close()
+
+
 def get_event(event_id: str) -> FalkorEvent:
     session = meta.create_local_session()
     try:
@@ -136,12 +153,6 @@ def get_dictized_package(
         return table_dictize(session.query(Package).get(id), TOOLKIT_CONTEXT)
     finally:
         session.close()
-
-
-def get_failed_events(
-    session: sa.orm.Session,
-) -> List[FalkorEvent]:
-    return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.FAILED).order_by(FalkorEvent.created_at.desc()).all()
 
 
 class FalkorSyncJobStatus(Enum):

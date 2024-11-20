@@ -20,12 +20,11 @@ from ckanext.falkor.model import (
     FalkorSyncJobStatus,
     new_falkor_sync_job,
     create_new_event,
+    get_events,
     get_event,
-    get_pending_events,
     get_resources_without_create_events,
     insert_new_falkor_sync_job,
     get_sync_job_history,
-    get_failed_events
 )
 from ckanext.falkor.event_handler import (
     EventHandler,
@@ -150,7 +149,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         recent_job_limit = 10
         sync_jobs = get_sync_job_history(session, recent_job_limit)
-        failed_events = get_failed_events(session)
+        failed_events = get_events(FalkorEventStatus.FAILED)
         session.close()
         return render(
             "admin/base.html",
@@ -182,7 +181,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
                     [event]
                 )
 
-            pending_events = get_pending_events(session)
+            pending_events = get_events(FalkorEventStatus.PENDING)
             for event in pending_events:
                 jobs.enqueue(
                     self.event_handler.handle_event,
@@ -208,7 +207,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         check_access()
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         try:
-            failed_events = get_failed_events(session)
+            failed_events = get_events(FalkorEventStatus.FAILED)
 
             for event in failed_events:
                 session.add(event)
