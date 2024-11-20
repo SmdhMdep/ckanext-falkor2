@@ -297,11 +297,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
     def construct_falkor_url(self, resource):
         resource_id = resource["id"]
         package_id = resource["package_id"]
-        package_info = toolkit.get_action(
-            "package_show")(data_dict={"id": package_id})
-        org_id = package_info["organization"]["id"]
 
-        return f"{self.audit_base_url}{org_id}/{package_id}/{resource_id}"
+        return f"{self.audit_base_url}{package_id}/{resource_id}"
 
     def get_helpers(self):
         return {"construct_falkor_url": self.construct_falkor_url}
