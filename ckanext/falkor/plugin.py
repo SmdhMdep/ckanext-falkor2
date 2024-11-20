@@ -89,7 +89,6 @@ class FalkorPlugin(plugins.SingletonPlugin):
             config, "falkor_admin.admin_tab", "Falkor", icon="gavel")
 
     def configure(self, config):
-        # TODO: Check if plugins has been initialised before tracking events
         self.config = config
         endpoint = get_config_value(config, "ckanext.falkor.auth.endpoint")
         client_id = get_config_value(config, "ckanext.falkor.auth.client_id")
