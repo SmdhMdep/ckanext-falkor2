@@ -171,6 +171,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         job = new_falkor_sync_job(job_id, start=datetime.now())
         try:
             insert_new_falkor_sync_job(session, job)
+            session.commit()
 
             resources = get_resources_without_create_events(session)
             for resource in resources:
