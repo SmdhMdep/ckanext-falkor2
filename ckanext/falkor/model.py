@@ -95,8 +95,6 @@ def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) ->
         event_type=event_type,
     )
 
-    log.debug("LAST MODIFIED " + str(resource["last_modified"]))
-
     if event.event_type == FalkorEventType.CREATE:
         event.created_at = datetime.fromisoformat(resource["created"])
     else:
@@ -124,14 +122,6 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     ).filter(
         sa.cast(distinct_resource_creates.c.resource_id, sa.TEXT) == None
     ).all()
-
-
-def get_dictized_resource(
-        session: sa.orm.Session,
-        context: dict,
-        id: str,
-) -> dict:
-    return table_dictize(session.query(Resource).get(id), context)
 
 
 def get_dictized_package(

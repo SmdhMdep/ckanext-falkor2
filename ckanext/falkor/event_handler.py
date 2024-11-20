@@ -1,5 +1,4 @@
 import logging
-import json
 import sqlalchemy as sa
 
 from datetime import datetime
@@ -10,7 +9,6 @@ from ckanext.falkor.model import (
     FalkorEventType,
     FalkorEventStatus,
     FalkorEventResourceType,
-    JobQueueName
 )
 from ckanext.falkor.client import Client
 
