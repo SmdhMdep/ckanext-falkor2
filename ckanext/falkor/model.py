@@ -221,9 +221,3 @@ def get_sync_job_history(session: sa.orm.Session, limit: Optional[int] = None) -
     if limit is not None:
         query = query.limit(limit)
     return query.all()
-
-
-class JobQueueName(Enum):
-    REPROCESS = "reprocess"
-    SYNC = "sync"
-    EVENT = "event"
