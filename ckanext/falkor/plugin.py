@@ -234,20 +234,18 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def reprocess(self, event_id: str):
         check_access()
-        log.debug(f"Reprocessing {event_id}")
-        session: sa.orm.Session = ckan_model.meta.create_local_session()
-        event = get_event(session, event_id)
-        # entity = get_dictized_entity(
-        #     session,
-        #     TOOLKIT_CONTEXT,
-        #     str(event.object_id),
-        #     event.object_type
-        # )
-        session.close()
-        # jobs.enqueue(
-        #     self.event_handler.handle,
-        #     [event, entity]
-        # )
+        try:
+            log.debug(f"Reprocessing {event_id}")
+            session: sa.orm.Session = ckan_model.meta.create_local_session()
+            event = get_event(session, event_id)
+            session.close()
+            self.event_handler.handle_event(event)
+            toolkit.h.flash_success(f"Event {event_id} reprocessed")
+        except Exception as e:
+            toolkit.h.flash_error(
+                f"Could not reprocess event {event_id}. Please check the logs")
+            log.exception(e)
+
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
     # IResourceController

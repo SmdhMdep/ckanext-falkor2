@@ -109,5 +109,6 @@ class EventHandler:
                 f"[Event ID: {event.id}] {e}")
             event.status = FalkorEventStatus.FAILED
             session.commit()
+            raise e
         finally:
             session.close()
