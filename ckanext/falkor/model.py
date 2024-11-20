@@ -95,10 +95,10 @@ def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) ->
         event_type=event_type,
     )
 
+    log.debug("LAST MODIFIED " + str(resource["last_modified"]))
+
     if event.event_type == FalkorEventType.CREATE:
         event.created_at = datetime.fromisoformat(resource["created"])
-    elif event.event_type == FalkorEventType.UPDATE:
-        event.created_at = datetime.fromisoformat(resource["last_modified"])
     else:
         event.created_at = datetime.now()
 
