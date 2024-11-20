@@ -52,7 +52,7 @@ class EventHandler:
                 "package_name": event.package_name,
                 "resource_id": event.resource_id,
                 "resource_name": event.resource_name,
-                "resource_type": event.resource_type
+                "resource_type": event.resource_type.value
             }
 
             package_id = event.package_id
