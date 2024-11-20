@@ -24,6 +24,7 @@ from ckanext.falkor.model import (
     create_new_event,
     get_event,
     get_pending_events,
+    get_resources_without_create_events,
     insert_new_falkor_sync_job,
     get_sync_job_history,
     get_failed_events
@@ -171,35 +172,28 @@ class FalkorPlugin(plugins.SingletonPlugin):
         try:
             insert_new_falkor_sync_job(session, job)
 
-            # resources = get_resources_without_create_events(session)
-            # for resource in resources:
-            #     event = FalkorEvent(
-            #         object_id=resource.id,
-            #         object_type=FalkorEventObjectType.RESOURCE,
-            #         event_type=FalkorEventType.CREATE,
-            #         user_id="sync_job",
-            #         created_at=resource.created
-            #     )
-            #     jobs.enqueue(
-            #         self.event_handler.handle,
-            #         [event, table_dictize(resource, TOOLKIT_CONTEXT)]
-            #     )
-            #
-            # pending_events = get_pending_events(session)
-            # for event in pending_events:
-            # entity = get_dictized_entity(
-            #     session,
-            #     TOOLKIT_CONTEXT,
-            #     str(event.object_id),
-            #     event.object_type
-            # )
-            # jobs.enqueue(
-            #     self.event_handler.handle,
-            #     [event, entity]
-            # )
+            resources = get_resources_without_create_events(session)
+            for resource in resources:
+                event = create_new_event(
+                    FalkorEventType.CREATE,
+                    table_dictize(resource, TOOLKIT_CONTEXT),
+                    {"id": "sync_job", "email": "sync_job"}
+                )
+                jobs.enqueue(
+                    self.event_handler.handle_event,
+                    [event]
+                )
+
+            pending_events = get_pending_events(session)
+            for event in pending_events:
+                jobs.enqueue(
+                    self.event_handler.handle_event,
+                    [event]
+                )
 
             job.status = FalkorSyncJobStatus.FINISHED
-            toolkit.h.flash_success("Sync job started")
+            toolkit.h.flash_success(
+                f"Sync job started to process {len(resources) + len(pending_events)} pending events")
         except Exception as e:
             log.exception(f"[Job ID: {job_id}] {e}")
             session.rollback()

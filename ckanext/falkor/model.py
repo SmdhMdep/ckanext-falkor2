@@ -102,7 +102,7 @@ def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) ->
     else:
         event.created_at = datetime.now()
 
-    if resource["resource_type"] == FalkorEventResourceType.STREAM:
+    if resource["resource_type"] == FalkorEventResourceType.STREAM.value:
         event.resource_type = FalkorEventResourceType.STREAM
 
     return event
@@ -120,9 +120,9 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     ).outerjoin(
         distinct_resource_creates,
         Resource.id == sa.cast(
-            distinct_resource_creates.c.object_id, sa.TEXT)
+            distinct_resource_creates.c.resource_id, sa.TEXT)
     ).filter(
-        sa.cast(distinct_resource_creates.c.object_id, sa.TEXT) == None
+        sa.cast(distinct_resource_creates.c.resource_id, sa.TEXT) == None
     ).all()
 
 
