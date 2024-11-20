@@ -233,18 +233,15 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def reprocess(self, event_id: str):
         check_access()
-        session: sa.orm.Session = ckan_model.meta.create_local_session()
         try:
             log.debug(f"Reprocessing {event_id}")
-            event = get_event(session, event_id)
+            event = get_event(event_id)
             self.event_handler.handle_event(event)
             toolkit.h.flash_success(f"Event {event_id} reprocessed")
         except Exception as e:
             toolkit.h.flash_error(
                 f"Could not reprocess event {event_id}. Please check the logs")
             log.exception(e)
-        finally:
-            session.close()
 
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 

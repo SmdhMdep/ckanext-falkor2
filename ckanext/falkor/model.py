@@ -74,8 +74,12 @@ def get_pending_events(session: sa.orm.Session) -> List[FalkorEvent]:
     return session.query(FalkorEvent).filter(FalkorEvent.status == FalkorEventStatus.PENDING).all()
 
 
-def get_event(session: sa.orm.Session, event_id: str) -> FalkorEvent:
-    return session.query(FalkorEvent).get(event_id)
+def get_event(event_id: str) -> FalkorEvent:
+    session = meta.create_local_session()
+    try:
+        return session.query(FalkorEvent).get(event_id)
+    finally:
+        session.close()
 
 
 def create_new_event(event_type: FalkorEventType, resource: dict, user: dict) -> FalkorEvent:
