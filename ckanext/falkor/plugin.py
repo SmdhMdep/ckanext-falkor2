@@ -17,6 +17,7 @@ from ckanext.falkor.model import (
     TOOLKIT_CONTEXT,
     JobQueueName,
     FalkorEvent,
+    FalkorEventStatus,
     FalkorEventType,
     FalkorSyncJobStatus,
     new_falkor_sync_job,
@@ -213,38 +214,45 @@ class FalkorPlugin(plugins.SingletonPlugin):
 
     def reprocess_all(self):
         check_access()
-        log.debug("Reprocessing all failed events")
         session: sa.orm.Session = ckan_model.meta.create_local_session()
-        failed_events = get_failed_events(session)
-        session.close()
+        try:
+            failed_events = get_failed_events(session)
 
-        # for event in failed_events:
-        #     entity = get_dictized_entity(
-        #         session,
-        #         TOOLKIT_CONTEXT,
-        #         str(event.object_id),
-        #         event.object_type
-        #     )
-        #     jobs.enqueue(
-        #         self.event_handler.handle,
-        #         [event, entity]
-        #     )
+            for event in failed_events:
+                session.add(event)
+                event.status = FalkorEventStatus.PENDING
+                jobs.enqueue(
+                    self.event_handler.handle_event,
+                    [event]
+                )
+
+            session.commit()
+            toolkit.h.flash_success(
+                f"Reprocessing {len(failed_events)} failed events")
+        except Exception as e:
+            session.rollback()
+            toolkit.h.flash_error(
+                "Something went wrong when trying to failed events")
+            log.exception(e)
+        finally:
+            session.close()
 
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
     def reprocess(self, event_id: str):
         check_access()
+        session: sa.orm.Session = ckan_model.meta.create_local_session()
         try:
             log.debug(f"Reprocessing {event_id}")
-            session: sa.orm.Session = ckan_model.meta.create_local_session()
             event = get_event(session, event_id)
-            session.close()
             self.event_handler.handle_event(event)
             toolkit.h.flash_success(f"Event {event_id} reprocessed")
         except Exception as e:
             toolkit.h.flash_error(
                 f"Could not reprocess event {event_id}. Please check the logs")
             log.exception(e)
+        finally:
+            session.close()
 
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
