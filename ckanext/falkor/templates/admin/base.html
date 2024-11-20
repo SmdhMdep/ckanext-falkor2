@@ -19,8 +19,8 @@
   <thead>
     <tr>
       <th scope="col">Event ID</th>
-      <th scope="col">Object ID</th>
-      <th scope="col">Object Type</th>
+      <th scope="col">Resource ID</th>
+      <th scope="col">Resource Type</th>
       <th scope="col">Event Type</th>
       <th scope="col">User ID</th>
       <th scope="col">Created At</th>
@@ -43,8 +43,8 @@
     {% for event in failed_events %}
       <tr>
         <td>{{ event.id }}</td>
-        <td>{{ event.object_id }}</td>
-        <td>{{ event.object_type.value }}</td>
+        <td>{{ event.resource_id }}</td>
+        <td>{{ event.resource_type.value }}</td>
         <td>{{ event.event_type.value }}</td>
         <td>{{ event.user_id }}</td>
         <td>{{ h.render_datetime(event.created_at, with_hours=True, with_seconds=True) }}</td>
