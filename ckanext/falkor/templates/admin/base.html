@@ -1,0 +1,115 @@
+{% ckan_extends %}
+
+{% block primary_content_inner %}
+{% import 'macros/form.html' as form %}
+{% if latest_job_run != None %}
+  <p>{{ _('Last sync job run: ' + h.render_datetime(latest_job_run, with_hours=True, with_seconds=True)) }}</p>
+{% endif %}
+<form method="POST" action="{{ h.url_for("falkor_admin.sync") }}" id="form-falkor-sync">
+      <button
+        class="btn btn-primary btn-block"
+        type="submit"
+        title="{{ _('Run a sync job to push any pending events to Falkor.') }}"
+      >
+        {{ _('Sync') }}
+      </button>
+</form>
+<h3>Events</h3>
+<ul class="nav nav-tabs">
+<li role="presentation" class="{{ 'active' if event_status == 'failed' }}"><a href="?event_status=failed">Failed</a></li>
+  <li role="presentation" class="{{ 'active' if event_status == 'pending' }}"><a href="?event_status=pending">Pending</a></li>
+  <li role="presentation" class="{{ 'active' if event_status == 'processing' }}"><a href="?event_status=processing">Processing</a></li>
+  <li role="presentation" class="{{ 'active' if event_status == 'synced' }}"><a href="?event_status=synced">Synced</a></li>
+</ul>
+<table class="table table-responsive">
+  <thead>
+    <tr>
+      <th scope="col">Event ID</th>
+      <th scope="col">Resource ID</th>
+      <th scope="col">Resource Type</th>
+      <th scope="col">Event Type</th>
+      <th scope="col">User ID</th>
+      <th scope="col">Created At</th>
+      <th scope="col">
+        {% if events | length > 0 %}
+          <form method="POST" action="{{ h.url_for("falkor_admin.reprocess_all", event_status=event_status) }}" id="form-reprocess-all">
+                <button
+                  class="btn btn-sm btn-warning"
+                  type="submit"
+                  title="{{ _('Reprocess all events') }}"
+                >
+                  {{ _('Reprocess All') }}
+                </button>
+          </form>
+        {% endif %}
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for event in events %}
+      <tr>
+        <td>{{ event.id }}</td>
+        <td>{{ event.resource_id }}</td>
+        <td>{{ event.resource_type.value }}</td>
+        <td>{{ event.event_type.value }}</td>
+        <td>{{ event.user_id }}</td>
+        <td>{{ h.render_datetime(event.created_at, with_hours=True, with_seconds=True) }}</td>
+        <td>
+          <form method="POST" action="{{ h.url_for("falkor_admin.reprocess", event_id=event.id) }}">
+                <button
+                  class="btn btn-sm btn-warning"
+                  type="submit"
+                  title="{{ _('Reprocess event') }}"
+                >
+                  {{ _('Reprocess') }}
+                </button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<h3>Most recent runs</h3>
+<table class="table table-responsive">
+  <thead>
+    <tr>
+      <th scope="col">Job ID</th>
+      <th scope="col">Status</th>
+      <th scope="col">Started</th>
+      <th scope="col">Finished</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sync_job in sync_jobs %}
+      <tr>
+        <td>{{ sync_job.id }}</td>
+        <td class="{{ 'bg-danger' if sync_job.status.value == "failed" }}">{{ sync_job.status.value }}</td>
+        <td>{{ h.render_datetime(sync_job.start, with_hours=True, with_seconds=True) or _('Never') }}</td>
+        <td>{{ h.render_datetime(sync_job.end, with_hours=True, with_seconds=True) or _('Never') }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+
+{% block secondary_content %}
+  <div class="module module-narrow module-shallow">
+    <h2 class="module-heading">
+      <i class="fa fa-info-circle"></i>
+      {{ _('Falkor Admin') }}
+    </h2>
+    <div class="module-content">
+      {% block admin_form_help %}
+        {% trans %}
+          <p>This page can be used to:</p>
+          <ul>
+            <li>Manually run sync jobs</li>
+            <li>View recent sync job runs</li>
+            <li>View events</li>
+          </ul>
+        {% endtrans %}
+    {% endblock %}
+    </div>
+  </div>
+{% endblock %}

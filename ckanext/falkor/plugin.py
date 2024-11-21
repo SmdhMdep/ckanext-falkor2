@@ -1,127 +1,336 @@
+import logging
+import re
+
+from flask import request, Blueprint
+from datetime import datetime
+from ckan.lib import jobs
+
+import sqlalchemy as sa
 import ckan.plugins as plugins
 import ckan.plugins.toolkit as toolkit
-
-import logging
-
-import ckan.model as model
-
-from ckan.plugins.toolkit import config
-
-import ckan.lib.jobs as jobs
+import ckan.model as ckan_model
+import ckan.lib.base as base
 from ckan.lib.dictization import table_dictize
-from ckan.model.domain_object import DomainObjectOperation
 
-from ckanext.falkor import tasks2
+from ckanext.falkor import client, auth
+from ckanext.falkor.model import (
+    TOOLKIT_CONTEXT,
+    FalkorEventStatus,
+    FalkorEventType,
+    FalkorSyncJobStatus,
+    FalkorEventResourceType,
+    new_falkor_sync_job,
+    create_new_event,
+    get_events,
+    get_event,
+    get_resources_without_create_events,
+    insert_new_falkor_sync_job,
+    get_sync_job_history,
+)
+from ckanext.falkor.event_handler import (
+    EventHandler,
+    DomainObjectOperationToFalkorEventTypeMap
+)
+from uuid import uuid4
+
+render = base.render
 
 log = logging.getLogger(__name__)
 
 
+def get_config_value(config, key: str) -> str:
+    value = config.get(key)
+    if not value:
+        raise Exception(f"{key} not present in configration")
+    return value
+
+
+def get_user() -> dict:
+    user = toolkit.g.userobj
+    if not user:
+        return {
+            "id": "guest",
+            "email": "guest"
+        }
+
+    return {
+        "id": user.id,
+        "email": user.email
+    }
+
+
+def check_access():
+    context = {"model": ckan_model,
+               "user": toolkit.g.user, "auth_user_obj": toolkit.g.userobj}
+    try:
+        toolkit.check_access('sysadmin', context, {})
+    except toolkit.NotAuthorized:
+        toolkit.abort(403, "Need to be system administrator to administer")
+
+
 class FalkorPlugin(plugins.SingletonPlugin):
+    falkor: client.Client
+    event_handler: EventHandler
+    blueprint: Blueprint
+
     plugins.implements(plugins.IConfigurer)
+    plugins.implements(plugins.IConfigurable, inherit=True)
+    plugins.implements(plugins.IBlueprint)
+    plugins.implements(plugins.ITemplateHelpers)
     plugins.implements(plugins.IDomainObjectModification, inherit=True)
     plugins.implements(plugins.IResourceController, inherit=True)
 
     # IConfigurer
-    def update_config(self, config_):
-        toolkit.add_template_directory(config_, 'templates')
-        toolkit.add_public_directory(config_, 'public')
-        toolkit.add_resource('fanstatic',
-            'falkor')
+    def update_config(self, config):
+        toolkit.add_template_directory(config, "templates")
+        toolkit.add_public_directory(config, "public")
 
+        toolkit.add_ckan_admin_tab(
+            config, "falkor_admin.admin_tab", "Falkor", icon="gavel")
 
-    #IResourceController
-    def before_show(self, resource_dict):
+    def configure(self, config):
+        self.config = config
+        endpoint = get_config_value(config, "ckanext.falkor.auth.endpoint")
+        client_id = get_config_value(config, "ckanext.falkor.auth.client_id")
+        client_secret = get_config_value(
+            config,
+            "ckanext.falkor.auth.client_secret"
+        )
+        username = get_config_value(config, "ckanext.falkor.auth.username")
+        password = get_config_value(config, "ckanext.falkor.auth.password")
 
-        try:
-            context = {
-                'model': model,
-                'session': model.Session,
-                'user': tk.c.user,
-                'user_obj': tk.c.userobj
+        credentials = auth.Credentials(
+            client_id, client_secret, username, password)
+        auth_client = auth.Auth(
+            credentials,
+            endpoint,
+        )
+
+        tenant_id = get_config_value(config, "ckanext.falkor.tenant_id")
+        core_api_url = get_config_value(config, "ckanext.falkor.core_api_url")
+        admin_api_url = get_config_value(
+            config, "ckanext.falkor.admin_api_url")
+        self.audit_base_url = get_config_value(
+            config, "ckanext.falkor.audit_base_url")
+
+        self.falkor = client.Client(
+            auth_client, tenant_id, core_api_url, admin_api_url
+        )
+
+        self.event_handler = EventHandler(self.falkor)
+        self.blueprint = Blueprint(u'falkor_admin', __name__)
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor",
+            view_func=self.admin_tab,
+            methods=["GET"]
+        )
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor/sync",
+            view_func=self.sync,
+            methods=["POST"]
+        )
+
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor/reprocess/<event_status>",
+            view_func=self.reprocess_all,
+            methods=["POST"]
+        )
+
+        self.blueprint.add_url_rule(
+            "/ckan-admin/falkor/reprocess/event/<event_id>",
+            view_func=self.reprocess,
+            methods=["POST"]
+        )
+
+    def get_blueprint(self):
+        return self.blueprint
+
+    def admin_tab(self):
+        check_access()
+        session: sa.orm.Session = ckan_model.meta.create_local_session()
+        recent_job_limit = 10
+        sync_jobs = get_sync_job_history(session, recent_job_limit)
+        event_status = FalkorEventStatus.FAILED
+
+        if "event_status" in request.args:
+            try:
+                event_status = FalkorEventStatus.from_str(
+                    request.args["event_status"])
+            except ValueError as e:
+                toolkit.h.flash_error(str(e))
+
+        session.close()
+        return render(
+            "admin/base.html",
+            extra_vars={
+                "latest_job_run": sync_jobs[0].start if len(sync_jobs) else None,
+                "sync_jobs": sync_jobs,
+                "events": get_events(event_status),
+                "event_status": event_status.value
             }
-            tasks2.documentRead(context,resource_dict)
-        except:
-            a = 1
+        )
 
-        
+    def sync(self):
+        check_access()
+        session: sa.orm.Session = ckan_model.meta.create_local_session()
+        job_id = uuid4()
+        job = new_falkor_sync_job(job_id, start=datetime.now())
+        log.debug(f"[Job ID: {job_id}] Starting sync job")
+        try:
+            insert_new_falkor_sync_job(session, job)
+            session.commit()
 
+            resources = get_resources_without_create_events(session)
+            log.debug(
+                f"[Job ID: {job_id}] Processing {len(resources)} resources with create events")
+            for resource in resources:
+                event = create_new_event(
+                    FalkorEventType.CREATE,
+                    table_dictize(resource, TOOLKIT_CONTEXT),
+                    {"id": "sync_job", "email": "sync_job"}
+                )
+                jobs.enqueue(
+                    self.event_handler.handle_event,
+                    [event]
+                )
 
+            pending_events = get_events(FalkorEventStatus.PENDING)
+            log.debug(
+                f"[Job ID: {job_id}] Processing {len(pending_events)} pending events")
+            for event in pending_events:
+                jobs.enqueue(
+                    self.event_handler.handle_event,
+                    [event]
+                )
 
-    #IDomainObjectNotification & #IResourceURLChange
-    def notify(self, entity, operation=None):
-        context = {'model': model, 'ignore_auth': True, 'defer_commit': True}
+            job.status = FalkorSyncJobStatus.FINISHED
+            toolkit.h.flash_success(
+                f"Sync job started to process {len(resources) + len(pending_events)} pending events")
+        except Exception as e:
+            log.exception(f"[Job ID: {job_id}] Job failed:\n{e}")
+            session.rollback()
+            job.status = FalkorSyncJobStatus.FAILED
+            toolkit.h.flash_error("There was an error starting the sync job")
+        finally:
+            job.end = datetime.now()
+            session.commit()
+            session.close()
+            log.debug(
+                f"[Job ID: {job_id}] Sync job finished at {str(job.end)}")
 
-        website = "http://ec2-18-134-94-243.eu-west-2.compute.amazonaws.com:5000/"
+        return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
-        if isinstance(entity, model.Resource):
-            if not operation:
-                #This happens on IResourceURLChange, but I'm not sure whether
-                #to make this into a webhook.
-                return
+    def reprocess_all(self, event_status: str):
+        check_access()
+        session: sa.orm.Session = ckan_model.meta.create_local_session()
+        try:
+            event_status = FalkorEventStatus.from_str(event_status)
+            events = get_events(event_status)
 
-            #resource/document create
-            elif operation == DomainObjectOperation.new:
-                topic = 'resource/create'
-                resource = table_dictize(entity, context)
-                #tasks.notify_hooks_resource_create_cheaty(resource, website)
+            log.debug(
+                f"Reprocessing {len(events)} events with status {event_status.value}")
 
-                #jobs.enqueue(
-                #    tasks.notify_hooks_resource_create_cheaty,
-                #    [resource, webhook, website]
-                #)
+            for event in events:
+                session.add(event)
+                event.status = FalkorEventStatus.PENDING
+                jobs.enqueue(
+                    self.event_handler.handle_event,
+                    [event]
+                )
 
-            #resource/document update
-            if operation == DomainObjectOperation.changed:
-                topic = 'resource/update'
+            session.commit()
+            toolkit.h.flash_success(
+                f"Reprocessing {len(events)} events")
+        except ValueError as e:
+            session.rollback()
+            toolkit.h.flash_error(str(e))
+            log.exception(e)
+        except Exception as e:
+            session.rollback()
+            toolkit.h.flash_error(
+                "Something went wrong when trying to reprocess events")
+            log.exception(
+                f"Failed to reprocess events with status {event_status}:\n {e}")
+        finally:
+            session.close()
 
-                resource = table_dictize(entity, context)
+        return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
-                #tasks.notify_hooks_resource_update(resource, webhook)
+    def reprocess(self, event_id: str):
+        check_access()
+        try:
+            log.debug(f"Reprocessing {event_id}")
+            event = get_event(event_id)
+            self.event_handler.handle_event(event)
+            toolkit.h.flash_success(f"Event {event_id} reprocessed")
+        except Exception as e:
+            toolkit.h.flash_error(
+                f"Could not reprocess event {event_id}. Please check the logs")
+            log.exception(e)
 
-                #jobs.enqueue(
-                #    tasks.notify_hooks_resource_update,
-                #    [resource, webhook, website]
-                #)
-            
-            #resource/document delete
-            elif operation == DomainObjectOperation.deleted:
-                topic = 'resource/delete'
+        return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
-                resource = table_dictize(entity, context)
+    # IResourceController
 
-                #tasks.notify_hooks_resource_delete(resource, webhook, website)
+    def before_show(self, resource_dict):
+        resource_id = resource_dict["id"]
 
-                #jobs.enqueue(
-                #    tasks.notify_hooks_resource_update,
-                #    [resource, webhook, website]
-                #)
-                
-            else:
-                return
+        # This regex pattern will only match /dataset/<dataset>/resource/<resource_id>
+        valid_url_pattern = re.compile(
+            r'^.*?/dataset/[^/]+/resource/(?!new)[^/]+/?$')
 
-        if isinstance(entity, model.Package):
+        if not valid_url_pattern.match(request.url) or resource_id not in request.url:
+            return
 
-            #Dataset create
-            if operation == DomainObjectOperation.new:
-                topic = 'dataset/create'
-                resource = table_dictize(entity, context)
+        log.debug(f"Read event for resource {resource_dict['id']}")
 
-                #tasks.notify_hooks_dataset_create(resource)
-                    
-                #jobs.enqueue(
-                #    tasks.notify_hooks_dataset_create,
-                #    [resource, webhook, website]
-                #)
+        event = create_new_event(
+            FalkorEventType.READ,
+            resource_dict,
+            get_user()
+        )
 
-            #Dataset update
-            #Most likely not required as falkor doesnt allow updating datasets
-            elif operation == DomainObjectOperation.changed:
-                topic = 'dataset/update'
+        jobs.enqueue(
+            self.event_handler.handle_event,
+            args=[event],
+        )
 
-            #Dataset delete
-            #Most likely not required as falkor doesnt allow deleting datasets
-            elif operation == DomainObjectOperation.deleted:
-                topic = 'dataset/delete'
+        self.get_helpers()
 
-            else:
-                return
+    def notify(
+            self,
+            entity,
+            operation=None
+    ):
+        if operation is None:
+            return
+        elif not isinstance(entity, ckan_model.Resource):
+            return
+
+        log.debug(f"Operation {operation} event for resource {entity.id}")
+        event = create_new_event(
+            DomainObjectOperationToFalkorEventTypeMap[operation],
+            table_dictize(entity, TOOLKIT_CONTEXT),
+            get_user()
+        )
+
+        log.debug(f"Queuing event {event.id} for {event.resource_id}")
+        jobs.enqueue(
+            self.event_handler.handle_event,
+            args=[event],
+        )
+
+    def construct_falkor_url(self, resource, package):
+        resource_id = resource["id"]
+        package_id = package["id"]
+
+        if "resource_type" in resource \
+                and resource["resource_type"] is not None \
+                and resource["resource_type"].lower() == FalkorEventResourceType.STREAM.value:
+            resource_id = resource["name"]
+            package_id = package["name"]
+
+        return f"{self.audit_base_url}dataset/{package_id}/document/{resource_id}"
+
+    def get_helpers(self):
+        return {"construct_falkor_url": self.construct_falkor_url}
