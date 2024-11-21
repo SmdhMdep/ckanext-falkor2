@@ -265,7 +265,7 @@ Defaulting to failed.
     def before_show(self, resource_dict):
         resource_id = resource_dict["id"]
 
-        # This regex pattern will only match /dataset/<dataset_id>/resource/<resource_id>
+        # This regex pattern will only match /dataset/<dataset>/resource/<resource_id>
         valid_url_pattern = re.compile(
             r'^.*?/dataset/[^/]+/resource/(?!new)[^/]+/?$')
 
