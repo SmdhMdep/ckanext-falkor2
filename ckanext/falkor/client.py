@@ -98,10 +98,10 @@ class Client:
 
         self.__http_session = http_session
 
-    def dataset_create(self, package_id: str):
+    def dataset_create(self, dataset_id: str):
         url = self.__admin_base_url + self.__tenant_id + "/dataset"
         payload = {
-            "datasetId": package_id,
+            "datasetId": dataset_id,
             "encryptionType": "none",
             "externalStorage": "false",
             "permissionEnabled": "false",
@@ -113,8 +113,8 @@ class Client:
         falkor_post(self.__http_session, url, payload,
                     self.__auth).raise_for_status()
 
-    def dataset_exists(self, package_id: str) -> bool:
-        url = self.__core_base_url + self.__tenant_id + "/dataset/" + package_id + "/info"
+    def dataset_exists(self, dataset_id: str) -> bool:
+        url = self.__core_base_url + self.__tenant_id + "/dataset/" + dataset_id + "/info"
         try:
             falkor_get(self.__http_session, url,
                        self.__auth).raise_for_status()
@@ -125,9 +125,9 @@ class Client:
             else:
                 raise e
 
-    def document_exists(self, package_id: str, resource_id: str) -> bool:
+    def document_exists(self, dataset_id: str, document_id: str) -> bool:
         url = self.__core_base_url + self.__tenant_id + \
-            "/dataset/" + package_id + "/" + resource_id + "/info"
+            "/dataset/" + dataset_id + "/" + document_id + "/info"
         try:
             falkor_get(self.__http_session, url,
                        self.__auth).raise_for_status()
@@ -138,14 +138,14 @@ class Client:
             else:
                 raise e
 
-    def document_get(self, package_id: str, resource_id: str):
+    def document_get(self, dataset_id: str, document_id: str):
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + package_id
+            + dataset_id
             + "/"
-            + resource_id
+            + document_id
             + "/body"
         )
 
@@ -179,17 +179,17 @@ class Client:
 
     def document_update(
             self,
-            resource_id: str,
-            package_id: str,
+            dataset_id: str,
+            document_id: str,
             data: str
     ):
         url = (
             self.__core_base_url
             + self.__tenant_id
             + "/dataset/"
-            + package_id
+            + dataset_id
             + "/"
-            + resource_id
+            + document_id
             + "/body"
         )
 

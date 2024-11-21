@@ -95,8 +95,8 @@ class EventHandler:
                 document_events.append(document_event)
 
                 self.falkor.document_update(
-                    resource_id,
                     package_id,
+                    resource_id,
                     document_events
                 )
 
