@@ -310,7 +310,9 @@ Defaulting to failed.
         resource_id = resource["id"]
         package_id = package["id"]
 
-        if "resource_type" in resource and resource["resource_type"].lower() == FalkorEventResourceType.STREAM.value:
+        if "resource_type" in resource \
+                and resource["resource_type"] is not None \
+                and resource["resource_type"].lower() == FalkorEventResourceType.STREAM.value:
             resource_id = resource["name"]
             package_id = package["name"]
 
