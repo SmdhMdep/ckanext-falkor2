@@ -137,7 +137,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.blueprint.add_url_rule(
-            "/ckan-admin/falkor/event/reprocess/event/<event_id>",
+            "/ckan-admin/falkor/reprocess/event/<event_id>",
             view_func=self.reprocess,
             methods=["POST"]
         )
