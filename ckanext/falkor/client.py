@@ -123,6 +123,7 @@ class Client:
             if e.response.status_code == 404:
                 return False
             else:
+                log.exception(e)
                 raise e
 
     def document_exists(self, dataset_id: str, document_id: str) -> bool:
@@ -136,6 +137,7 @@ class Client:
             if e.response.status_code == 404:
                 return False
             else:
+                log.exception(e)
                 raise e
 
     def document_get(self, dataset_id: str, document_id: str):
@@ -173,6 +175,7 @@ class Client:
             "data": json.dumps(data),
             "documentMetadata": metadata,
         }
+        log.debug(f"Creating document with payload:\n {payload}")
 
         falkor_post(self.__http_session, url, payload,
                     self.__auth).raise_for_status()
@@ -192,6 +195,7 @@ class Client:
             + document_id
             + "/body"
         )
+        log.debug(f"Updating document with payload:\n {data}")
 
         falkor_put(self.__http_session, url, data,
                    self.__auth).raise_for_status()

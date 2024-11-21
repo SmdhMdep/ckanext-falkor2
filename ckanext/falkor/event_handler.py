@@ -36,6 +36,8 @@ class EventHandler:
         try:
             event.status = FalkorEventStatus.PROCESSING
             session.commit()
+            log.debug(
+                f"[Event ID: {event.id}] Processing {event.event_type} event for resource {event.resource_id}")
 
             document_event = {
                 "id": str(event.id),
@@ -44,6 +46,8 @@ class EventHandler:
                 "user_email": event.user_email,
                 "created_at": event.created_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             }
+            log.debug(
+                f"[Event ID: {event.id}] {document_event}")
 
             metadata = {
                 "org_id": event.org_id,
@@ -54,11 +58,15 @@ class EventHandler:
                 "resource_name": event.resource_name,
                 "resource_type": event.resource_type.value
             }
+            log.debug(
+                f"[Event ID: {event.id}] {metadata}")
 
             package_id = event.package_id
             resource_id = event.resource_id
 
             if event.resource_type == FalkorEventResourceType.STREAM:
+                log.debug(
+                    f"[Event ID: {event.id}] resource {id} is of type stream")
                 document_event["user_id"] = event.user_email
 
                 metadata["org_id"] = event.org_name
@@ -69,9 +77,13 @@ class EventHandler:
                 resource_id = event.resource_name
 
             if not self.falkor.dataset_exists(package_id):
+                log.debug(
+                    f"[Event ID: {event.id}] Dataset doesn't exist, creating...")
                 self.falkor.dataset_create(package_id)
 
             if not self.falkor.document_exists(package_id, resource_id):
+                log.debug(
+                    f"[Event ID: {event.id}] Document doesn't exist, creating...")
                 self.falkor.document_create(
                     package_id,
                     resource_id,
@@ -79,6 +91,8 @@ class EventHandler:
                     metadata
                 )
             else:
+                log.debug(
+                    f"[Event ID: {event.id}] Document exists, updating...")
                 document_events: List[dict] = self.falkor.document_get(
                     package_id,
                     resource_id
@@ -103,9 +117,11 @@ class EventHandler:
             event.status = FalkorEventStatus.SYNCED
             event.synced_at = datetime.now()
             session.commit()
+            log.debug(
+                f"[Event ID: {event.id}] Successfully synced")
         except Exception as e:
             log.exception(
-                f"[Event ID: {event.id}] {e}")
+                f"[Event ID: {event.id}] Processing failed\n{e}")
             event.status = FalkorEventStatus.FAILED
             session.commit()
             raise e

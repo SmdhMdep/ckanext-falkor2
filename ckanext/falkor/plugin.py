@@ -175,11 +175,14 @@ class FalkorPlugin(plugins.SingletonPlugin):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         job_id = uuid4()
         job = new_falkor_sync_job(job_id, start=datetime.now())
+        log.debug(f"[Job ID: {job_id}] Starting sync job")
         try:
             insert_new_falkor_sync_job(session, job)
             session.commit()
 
             resources = get_resources_without_create_events(session)
+            log.debug(
+                f"[Job ID: {job_id}] Processing {len(resources)} resources with create events")
             for resource in resources:
                 event = create_new_event(
                     FalkorEventType.CREATE,
@@ -192,6 +195,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
                 )
 
             pending_events = get_events(FalkorEventStatus.PENDING)
+            log.debug(
+                f"[Job ID: {job_id}] Processing {len(pending_events)} pending events")
             for event in pending_events:
                 jobs.enqueue(
                     self.event_handler.handle_event,
@@ -202,7 +207,7 @@ class FalkorPlugin(plugins.SingletonPlugin):
             toolkit.h.flash_success(
                 f"Sync job started to process {len(resources) + len(pending_events)} pending events")
         except Exception as e:
-            log.exception(f"[Job ID: {job_id}] {e}")
+            log.exception(f"[Job ID: {job_id}] Job failed:\n{e}")
             session.rollback()
             job.status = FalkorSyncJobStatus.FAILED
             toolkit.h.flash_error("There was an error starting the sync job")
@@ -210,6 +215,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
             job.end = datetime.now()
             session.commit()
             session.close()
+            log.debug(
+                f"[Job ID: {job_id}] Sync job finished at {str(job.end)}")
 
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
@@ -218,8 +225,10 @@ class FalkorPlugin(plugins.SingletonPlugin):
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         try:
             event_status = FalkorEventStatus.from_str(event_status)
-
             events = get_events(event_status)
+
+            log.debug(
+                f"Reprocessing {len(events)} events with status {event_status.value}")
 
             for event in events:
                 session.add(event)
@@ -240,7 +249,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
             session.rollback()
             toolkit.h.flash_error(
                 "Something went wrong when trying to reprocess events")
-            log.exception(e)
+            log.exception(
+                f"Failed to reprocess events with status {event_status}:\n {e}")
         finally:
             session.close()
 
@@ -272,6 +282,8 @@ class FalkorPlugin(plugins.SingletonPlugin):
         if not valid_url_pattern.match(request.url) or resource_id not in request.url:
             return
 
+        log.debug(f"Read event for resource {resource_dict['id']}")
+
         event = create_new_event(
             FalkorEventType.READ,
             resource_dict,
@@ -295,12 +307,14 @@ class FalkorPlugin(plugins.SingletonPlugin):
         elif not isinstance(entity, ckan_model.Resource):
             return
 
+        log.debug(f"Operation {operation} event for resource {entity.id}")
         event = create_new_event(
             DomainObjectOperationToFalkorEventTypeMap[operation],
             table_dictize(entity, TOOLKIT_CONTEXT),
             get_user()
         )
 
+        log.debug(f"Queuing event {event.id} for {event.resource_id}")
         jobs.enqueue(
             self.event_handler.handle_event,
             args=[event],
