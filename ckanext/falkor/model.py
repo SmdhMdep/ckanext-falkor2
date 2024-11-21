@@ -33,6 +33,19 @@ class FalkorEventStatus(str, Enum):
     FAILED = 'failed'
     SYNCED = 'synced'
 
+    @classmethod
+    def from_str(cls, value: str):
+        try:
+            return cls[value.upper()]
+        except KeyError:
+            raise ValueError(
+                f"""
+Invalid event type: \"{value}\".
+Must be one of \"pending\", \"processing\", \"synced\"or \"failed\".
+Defaulting to failed.
+"""
+            )
+
 
 class FalkorEventType(str, Enum):
     CREATE = "create"

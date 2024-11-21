@@ -131,13 +131,13 @@ class FalkorPlugin(plugins.SingletonPlugin):
         )
 
         self.blueprint.add_url_rule(
-            "/ckan-admin/falkor/reprocess",
+            "/ckan-admin/falkor/reprocess/<event_status>",
             view_func=self.reprocess_all,
             methods=["POST"]
         )
 
         self.blueprint.add_url_rule(
-            "/ckan-admin/falkor/reprocess/<event_id>",
+            "/ckan-admin/falkor/event/reprocess/event/<event_id>",
             view_func=self.reprocess,
             methods=["POST"]
         )
@@ -153,17 +153,11 @@ class FalkorPlugin(plugins.SingletonPlugin):
         event_status = FalkorEventStatus.FAILED
 
         if "event_status" in request.args:
-            event_query = request.args["event_status"].upper()
             try:
-                event_status = FalkorEventStatus[event_query]
-            except KeyError:
-                toolkit.h.flash_error(
-                    f"""
-Invalid event type: \"{event_query.lower()}\".
-Must be one of \"pending\", \"processing\", \"synced\"or \"failed\".
-Defaulting to failed.
-"""
-                )
+                event_status = FalkorEventStatus.from_str(
+                    request.args["event_status"])
+            except ValueError as e:
+                toolkit.h.flash_error(str(e))
 
         session.close()
         return render(
@@ -219,13 +213,15 @@ Defaulting to failed.
 
         return toolkit.h.redirect_to(toolkit.h.url_for("falkor_admin.admin_tab"))
 
-    def reprocess_all(self):
+    def reprocess_all(self, event_status: str):
         check_access()
         session: sa.orm.Session = ckan_model.meta.create_local_session()
         try:
-            failed_events = get_events(FalkorEventStatus.FAILED)
+            event_status = FalkorEventStatus.from_str(event_status)
 
-            for event in failed_events:
+            events = get_events(event_status)
+
+            for event in events:
                 session.add(event)
                 event.status = FalkorEventStatus.PENDING
                 jobs.enqueue(
@@ -235,11 +231,15 @@ Defaulting to failed.
 
             session.commit()
             toolkit.h.flash_success(
-                f"Reprocessing {len(failed_events)} failed events")
+                f"Reprocessing {len(events)} events")
+        except ValueError as e:
+            session.rollback()
+            toolkit.h.flash_error(str(e))
+            log.exception(e)
         except Exception as e:
             session.rollback()
             toolkit.h.flash_error(
-                "Something went wrong when trying to failed events")
+                "Something went wrong when trying to reprocess events")
             log.exception(e)
         finally:
             session.close()

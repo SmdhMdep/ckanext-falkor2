@@ -32,7 +32,7 @@
       <th scope="col">Created At</th>
       <th scope="col">
         {% if events | length > 0 %}
-          <form method="POST" action="{{ h.url_for("falkor_admin.reprocess_all") }}" id="form-reprocess-all">
+          <form method="POST" action="{{ h.url_for("falkor_admin.reprocess_all", event_status=event_status) }}" id="form-reprocess-all">
                 <button
                   class="btn btn-sm btn-warning"
                   type="submit"
@@ -106,7 +106,7 @@
           <ul>
             <li>Manually run sync jobs</li>
             <li>View recent sync job runs</li>
-            <li>View failed events</li>
+            <li>View events</li>
           </ul>
         {% endtrans %}
     {% endblock %}
