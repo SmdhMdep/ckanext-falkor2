@@ -83,7 +83,8 @@ def get_failed_events(
 def get_events(status: Optional[FalkorEventStatus] = None) -> FalkorEvent:
     session = meta.create_local_session()
     try:
-        query = session.query(FalkorEvent).order_by(FalkorEvent.created_at.desc())
+        query = session.query(FalkorEvent).order_by(
+            FalkorEvent.created_at.desc())
         if status is not None:
             query = query.filter(FalkorEvent.status == status)
         return query.all()
@@ -143,16 +144,6 @@ def get_resources_without_create_events(session: sa.orm.Session) -> List[Resourc
     ).filter(
         sa.cast(distinct_resource_creates.c.resource_id, sa.TEXT) == None
     ).all()
-
-
-def get_dictized_package(
-    id: str
-) -> Package:
-    session = meta.create_local_session()
-    try:
-        return table_dictize(session.query(Package).get(id), TOOLKIT_CONTEXT)
-    finally:
-        session.close()
 
 
 class FalkorSyncJobStatus(Enum):
